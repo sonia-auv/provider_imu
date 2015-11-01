@@ -125,7 +125,10 @@ class IMU {
     CMD_GYROSTAB_ANGRATE_MAG = 0xD2,
     CMD_DELVEL_DELANG_MAG = 0xD3,
     CMD_DEV_ID_STR = 0xEA,
-    CMD_STOP_CONTINUOUS = 0xFA
+    CMD_STOP_CONTINUOUS = 0xFA,
+    CMD_FIRMWARE_VERSION = 0xE9,
+    CMD_FIRMWARE_UPDATE = 0xFD,
+    CMD_RESET_IMU = 0xFE
   };
 
   //! Enumeration of possible identifier strings for the
