@@ -298,6 +298,9 @@ class IMU {
   //! Convert the double time back to a uint64_t
   uint64_t toUint64_t(double time);
 
+  //This command will do a soft reset
+  void microstrain_3dmgx2_imu::IMU::reset();
+
   //! The file descriptor
   int fd;
 

@@ -734,3 +734,15 @@ double microstrain_3dmgx2_imu::IMU::toDouble(uint64_t time) {
 uint64_t microstrain_3dmgx2_imu::IMU::toUint64_t(double time) {
   return (uint64_t)(time * 1e9);
 }
+
+///////////////////////////////////////////////////////////////////////////////
+//This command will do a soft reset
+void microstrain_3dmgx2_imu::IMU::reset() {
+
+  cmd[0] = CMD_RESET_IMU;
+  cmd[1] = 0x9E;  // Confirms user intent
+  cmd[2] = 0x3A;  // Confirms user intent
+
+
+  send(cmd, sizeof(cmd));
+}
