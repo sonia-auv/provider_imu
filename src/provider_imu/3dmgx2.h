@@ -275,6 +275,13 @@ class IMU {
    */
   bool getDeviceIdentifierString(id_string type, char id[17]);
 
+
+  //This command will do a soft reset
+  void reset();
+
+  //This command will return the software version in the imu
+  std::string getFirmware(cmd cmd_firm);
+
  private:
   //! Send a command to the IMU and wait for a reply
   int transact(void *cmd, int cmd_len, void *rep, int rep_len, int timeout = 0);
@@ -298,8 +305,6 @@ class IMU {
   //! Convert the double time back to a uint64_t
   uint64_t toUint64_t(double time);
 
-  //This command will do a soft reset
-  void microstrain_3dmgx2_imu::IMU::reset();
 
   //! The file descriptor
   int fd;

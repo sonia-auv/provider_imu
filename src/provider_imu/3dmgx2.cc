@@ -736,10 +736,51 @@ uint64_t microstrain_3dmgx2_imu::IMU::toUint64_t(double time) {
 //This command will do a soft reset
 void microstrain_3dmgx2_imu::IMU::reset() {
 
+  uint8_t cmd [2];
+
   cmd[0] = CMD_RESET_IMU;
   cmd[1] = 0x9E;  // Confirms user intent
   cmd[2] = 0x3A;  // Confirms user intent
 
 
   send(cmd, sizeof(cmd));
+}
+
+///////////////////////////////////////////////////////////////////////////////
+//This command will return the version of the firmware of the imu
+std::string microstrain_3dmgx2_imu::IMU::getFirmware(cmd cmd_firm){
+
+  uint8_t cmd [1];
+  uint8_t rep [7];
+  uint32_t version;
+  std::string firm_version;
+
+  cmd [0] = cmd_firm;
+  transact(cmd, sizeof(cmd),rep, sizeof(rep),100);
+
+  uint16_t checksum = 0;
+  for (int i = 0; i < sizeof(rep) - 2; i++) {
+    checksum += ((uint8_t *)rep)[i];
+  }
+
+  if(rep[1] != CMD_FIRMWARE_VERSION){
+    IMU_EXCEPT(microstrain_3dmgx2_imu::Exception,"Wrong command receive from the IMU");
+  }
+  else if (checksum != bswap_16(*(uint16_t *)((uint8_t *)rep + sizeof(rep) - 2))) {
+    IMU_EXCEPT(microstrain_3dmgx2_imu::CorruptedDataException,
+               "invalid checksum.\n Something went wrong.");
+  }
+  else{
+    version = rep[2];
+    version << 8;
+    version += rep[3];
+    version << 8;
+    version += rep[4];
+    version << 8;
+    version += rep[5];
+
+    firm_version = std::to_string(version);
+  }
+
+  return  firm_version;
 }
