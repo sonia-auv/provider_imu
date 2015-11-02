@@ -132,7 +132,7 @@ class IMU {
   };
 
   //! Enumeration of possible identifier strings for the
-  //getDeviceIdentifierString command.
+  // getDeviceIdentifierString command.
 
   enum id_string {
     ID_MODEL_NUMBER = 0,
@@ -279,7 +279,7 @@ class IMU {
   //! Send a command to the IMU and wait for a reply
   int transact(void *cmd, int cmd_len, void *rep, int rep_len, int timeout = 0);
 
-  //! Send a single packet frmo the IMU
+  //! Send a single packet to the IMU
   int send(void *cmd, int cmd_len);
 
   //! Receive a particular message from the IMU

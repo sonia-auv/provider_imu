@@ -37,7 +37,6 @@
 
 #include <string>
 #include <boost/format.hpp>
-
 #include "ros/console.h"
 #include "provider_imu/3dmgx2.h"
 #include "log4cxx/logger.h"
@@ -65,7 +64,8 @@ std::string getID(microstrain_3dmgx2_imu::IMU &imu) {
   while (*dev_serial_num_ptr == ' ') dev_serial_num_ptr++;
 
   return (boost::format("%s_%s-%s") % dev_name_ptr % dev_model_num_ptr %
-          dev_serial_num_ptr).str();
+          dev_serial_num_ptr)
+      .str();
 }
 
 int main(int argc, char **argv) {
