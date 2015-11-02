@@ -1,7 +1,7 @@
-/*
- *  Player - One Hell of a Robot Server
- *  Copyright (C) 2008-20010  Willow Garage
- *
+/**
+ * \file	3dmgx2.cc
+ * \copyright Copyright (C) 2008-20010  Willow Garage. All rights reserved.
+ * \section LICENSE
  *
  *  This library is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU Lesser General Public
