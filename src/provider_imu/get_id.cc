@@ -102,7 +102,7 @@ int main(int argc, char **argv) {
   std::string firmware = imu.getFirmware();
 
 
-  std::cout << "\n" << firmware << std::endl;
+  std::cout << "Firmware version is: " << firmware << std::endl;
 
   try {
     imu.closePort();
