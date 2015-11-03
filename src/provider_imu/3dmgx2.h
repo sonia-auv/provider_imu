@@ -279,7 +279,7 @@ class IMU {
   void reset();
 
   // This command will return the software version in the imu
-  std::string getFirmware(cmd cmd_firm);
+  std::string getFirmware();
 
  private:
   //! Send a command to the IMU and wait for a reply

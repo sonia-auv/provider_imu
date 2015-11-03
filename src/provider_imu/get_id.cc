@@ -99,9 +99,10 @@ int main(int argc, char **argv) {
   if (verbose) fprintf(stdout, "IMU Device at port %s has ID: ", argv[1]);
   fprintf(stdout, "%s\n", id.c_str());
 
-  std::string firmware = imu.getFirmware(imu.CMD_FIRMWARE_VERSION);
+  std::string firmware = imu.getFirmware();
 
-  std::cout << firmware << std::endl;
+
+  std::cout << "\n" << firmware << std::endl;
 
   try {
     imu.closePort();
