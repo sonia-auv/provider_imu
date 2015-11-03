@@ -275,11 +275,10 @@ class IMU {
    */
   bool getDeviceIdentifierString(id_string type, char id[17]);
 
-
-  //This command will do a soft reset
+  // This command will do a soft reset
   void reset();
 
-  //This command will return the software version in the imu
+  // This command will return the software version in the imu
   std::string getFirmware(cmd cmd_firm);
 
  private:
@@ -304,7 +303,6 @@ class IMU {
 
   //! Convert the double time back to a uint64_t
   uint64_t toUint64_t(double time);
-
 
   //! The file descriptor
   int fd;

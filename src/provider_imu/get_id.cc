@@ -64,10 +64,8 @@ std::string getID(microstrain_3dmgx2_imu::IMU &imu) {
   while (*dev_serial_num_ptr == ' ') dev_serial_num_ptr++;
 
   return (boost::format("%s_%s-%s") % dev_name_ptr % dev_model_num_ptr %
-          dev_serial_num_ptr)
-      .str();
+          dev_serial_num_ptr).str();
 }
-
 
 int main(int argc, char **argv) {
   if (argc < 2 || argc > 3) {
