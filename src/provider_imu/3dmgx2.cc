@@ -770,11 +770,11 @@ std::string microstrain_3dmgx2_imu::IMU::getFirmware(cmd cmd_firm) {
   } else {
     version = rep[2];
     version << 8;
-    version += rep[3];
+    version || rep[3];
     version << 8;
-    version += rep[4];
+    version || rep[4];
     version << 8;
-    version += rep[5];
+    version || rep[5];
 
     firm_version = std::to_string(version);
   }
