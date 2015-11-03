@@ -56,7 +56,8 @@ file(GLOB_RECURSE provider_imu_FILES "${provider_imu_SRC_DIR}/*.cc" "${provider_
 # Must remove the main files as there is serveral of them
 list(REMOVE_ITEM provider_imu_FILES
         ${CMAKE_CURRENT_SOURCE_DIR}/${provider_imu_SRC_DIR}/${PROJECT_NAME}/main.cc
-        ${CMAKE_CURRENT_SOURCE_DIR}/${provider_imu_SRC_DIR}/${PROJECT_NAME}/get_id.cc)
+        ${CMAKE_CURRENT_SOURCE_DIR}/${provider_imu_SRC_DIR}/${PROJECT_NAME}/get_id.cc
+        ${CMAKE_CURRENT_SOURCE_DIR}/${provider_imu_SRC_DIR}/${PROJECT_NAME}/imu_reset.cc)
 
 # Include all the directories where source can be found.
 include_directories(
@@ -72,9 +73,13 @@ target_link_libraries(${PROJECT_NAME}_node ${catkin_LIBRARIES})
 set_target_properties(${PROJECT_NAME}_node PROPERTIES LINKER_LANGUAGE CXX )
 
 # Utility to recover ID from IMU
-add_executable(get_id ${provider_imu_SRC_DIR}/${PROJECT_NAME}/get_id.cc ${provider_imu_FILES} )
+add_executable(get_id ${provider_imu_SRC_DIR}/${PROJECT_NAME}/get_id.cc ${provider_imu_FILES})
 target_link_libraries(get_id ${catkin_LIBRARIES} ${LOG4CXX_LIBRARY})
 set_target_properties(get_id PROPERTIES LINKER_LANGUAGE CXX )
+
+add_executable(imu_reset ${provider_imu_SRC_DIR}/${PROJECT_NAME}/imu_reset.cc ${provider_imu_FILES})
+target_link_libraries(imu_reset ${catkin_LIBRARIES} ${LOG4CXX_LIBRARY})
+set_target_properties(imu_reset PROPERTIES LINKER_LANGUAGE CXX )
 
 #==========================================================================
 # I N S T A L L A T I O N
@@ -85,6 +90,12 @@ install(TARGETS ${PROJECT_NAME}_node get_id
     LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
     RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
     )
+
+install(TARGETS ${PROJECT_NAME}_node imu_reset
+        ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+        LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+        RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+)
 
 ## Mark cpp header files for installation
 install(DIRECTORY ${provider_imu_SRC_DIR}/${PROJECT_NAME}/

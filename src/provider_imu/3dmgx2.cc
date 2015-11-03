@@ -781,4 +781,3 @@ std::string microstrain_3dmgx2_imu::IMU::getFirmware(cmd cmd_firm) {
 
   return firm_version;
 }
-
