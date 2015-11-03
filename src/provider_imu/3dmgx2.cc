@@ -746,13 +746,13 @@ void microstrain_3dmgx2_imu::IMU::reset() {
 
 ///////////////////////////////////////////////////////////////////////////////
 // This command will return the version of the firmware of the imu
-std::string microstrain_3dmgx2_imu::IMU::getFirmware(cmd cmd_firm) {
+std::string microstrain_3dmgx2_imu::IMU::getFirmware() {
   uint8_t cmd[1];
   uint8_t rep[7];
   uint32_t version;
   std::string firm_version;
 
-  cmd[0] = cmd_firm;
+  cmd[0] = CMD_FIRMWARE_VERSION;
   transact(cmd, sizeof(cmd), rep, sizeof(rep), 100);
 
   uint16_t checksum = 0;

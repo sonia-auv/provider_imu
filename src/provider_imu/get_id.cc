@@ -99,6 +99,11 @@ int main(int argc, char **argv) {
   if (verbose) fprintf(stdout, "IMU Device at port %s has ID: ", argv[1]);
   fprintf(stdout, "%s\n", id.c_str());
 
+  std::string firmware = imu.getFirmware();
+
+
+  std::cout << "\n" << firmware << std::endl;
+
   try {
     imu.closePort();
   } catch (microstrain_3dmgx2_imu::Exception &e) {
