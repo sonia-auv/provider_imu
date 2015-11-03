@@ -29,6 +29,8 @@
 #include <sys/time.h>
 #include "provider_imu/3dmgx2.h"
 #include "poll.h"
+#include <iostream>
+#include <sstream>
 
 //! Macro for throwing an exception with a message
 #define IMU_EXCEPT(except, msg, ...)                                \
@@ -760,7 +762,7 @@ std::string microstrain_3dmgx2_imu::IMU::getFirmware() {
     checksum += ((uint8_t *)rep)[i];
   }
 
-  if (rep[1] != CMD_FIRMWARE_VERSION) {
+  if (rep[0] != CMD_FIRMWARE_VERSION) {
     IMU_EXCEPT(microstrain_3dmgx2_imu::Exception,
                "Wrong command receive from the IMU");
   } else if (checksum !=
@@ -768,15 +770,24 @@ std::string microstrain_3dmgx2_imu::IMU::getFirmware() {
     IMU_EXCEPT(microstrain_3dmgx2_imu::CorruptedDataException,
                "invalid checksum.\n Something went wrong.");
   } else {
-    version = rep[2];
-    version << 8;
+    version = rep[1];
+    version = version << 8;
+    version = version | rep[2];
+    version = version << 8;
     version = version | rep[3];
-    version << 8;
+    version = version << 8;
     version = version | rep[4];
-    version << 8;
-    version = version | rep[5];
 
     firm_version = std::to_string(version);
+
+    std::stringstream ss;
+    ss << firm_version.substr(0,1);
+    ss << ".";
+    ss << firm_version.substr(1,1);
+    ss << ".";		
+    ss << firm_version.substr(2,2);
+  
+    firm_version  = ss.str();    
   }
 
   return firm_version;
