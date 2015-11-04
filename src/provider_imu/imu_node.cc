@@ -36,6 +36,7 @@
  */
 
 #include "provider_imu/imu_node.h"
+#include <tf/transform_datatypes.h>
 
 //==============================================================================
 // C / D T O R   S E C T I O N
@@ -295,6 +296,12 @@ int ImuNode::publish_datum() {
       slow_count_++;
     }
 
+    double roll, pitch, yaw;
+    tf::Quaternion quat = getQuat(reading);
+    tf::Matrix3x3 m(quat);
+    m.getEulerYPR(roll,pitch,yaw);
+    std::cout << "Roll: " << roll << ", Pitch: " << ", Yaw: " << yaw << std::endl;
+
     freq_diag_.tick();
     clearErrorStatus();  // If we got here, then the IMU really is working.
                          // Next time an error occurs, we want to print it.
@@ -432,6 +439,35 @@ void ImuNode::getData(sensor_msgs::Imu& data) {
 
 //------------------------------------------------------------------------------
 //
+
+tf::Quaternion ImuNode::getQuat(sensor_msgs::Imu& data){
+  uint64_t time;
+  double accel[3];
+  double angrate[3];
+  double orientation[9];
+
+  imu.receiveAccelAngrateOrientation(&time, accel, angrate, orientation);
+  data.linear_acceleration.x = accel[0];
+  data.linear_acceleration.y = accel[1];
+  data.linear_acceleration.z = accel[2];
+
+  data.angular_velocity.x = angrate[0];
+  data.angular_velocity.y = angrate[1];
+  data.angular_velocity.z = angrate[2];
+
+  tf::Quaternion quat;
+  (tf::Matrix3x3(-1, 0, 0, 0, 1, 0, 0, 0, -1) *
+      tf::Matrix3x3(orientation[0], orientation[3], orientation[6], orientation[1],
+                    orientation[4], orientation[7], orientation[2], orientation[5],
+                    orientation[8])).getRotation(quat);
+
+
+  return quat;
+}
+
+//------------------------------------------------------------------------------
+//
+
 void ImuNode::StreamedDataTest(
     diagnostic_updater::DiagnosticStatusWrapper& status) {
   uint64_t time;

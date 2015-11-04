@@ -89,6 +89,8 @@ class ImuNode {
 
   void getData(sensor_msgs::Imu& data);
 
+  tf::Quaternion getQuat(sensor_msgs::Imu& data);
+
   void StreamedDataTest(diagnostic_updater::DiagnosticStatusWrapper& status);
 
   void GravityTest(diagnostic_updater::DiagnosticStatusWrapper& status);
