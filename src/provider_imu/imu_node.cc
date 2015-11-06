@@ -297,10 +297,8 @@ int ImuNode::publish_datum() {
     }
 
     double roll, pitch, yaw;
-    tf::Quaternion quat = getQuat(reading);
-    roll = atan2(2*(quat.getX()*quat.getY() + quat.getW()*quat.getZ()), quat.getW()*quat.getW() + quat.getX()*quat.getX() - quat.getY()*quat.getY() - quat.getZ()*quat.getZ());
-    pitch = atan2(2*(quat.getY()*quat.getZ() + quat.getW()*quat.getX()), quat.getW()*quat.getW() + quat.getX()*quat.getX() - quat.getY()*quat.getY() - quat.getZ()*quat.getZ());
-    yaw = asin((-2*quat.getX()*quat.getY() + quat.getW()*quat.getZ()));
+    uint64_t time;
+    imu.receiveEuler(&time,&roll,&pitch,&yaw);
     std::cout << "Roll: " << roll << ", Pitch: " << ", Yaw: " << yaw << std::endl;
 
     freq_diag_.tick();
