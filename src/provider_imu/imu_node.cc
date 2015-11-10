@@ -300,7 +300,8 @@ int ImuNode::publish_datum() {
     tf::Quaternion q;
     q = getQuat(reading);
     tf::Matrix3x3 m(q);
-    m.getEulerYPR(yaw, pitch, roll);
+    //m.getEulerYPR(yaw, pitch, roll);
+    m.getRPY(roll, pitch, yaw);
     std::cout << "Functtion \n Roll: " << (roll/(2*M_PI))*360 << ", Pitch: " << (pitch/(2*M_PI))*360 << ", Yaw: " << (yaw/(2*M_PI))*360 << std::endl;
 
 
