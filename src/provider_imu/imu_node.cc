@@ -297,9 +297,13 @@ int ImuNode::publish_datum() {
     }
 
     double roll, pitch, yaw;
-    uint64_t time;
-    imu.receiveEuler(&time,&roll,&pitch,&yaw);
-    std::cout << "Roll: " << roll << ", Pitch: " << ", Yaw: " << yaw << std::endl;
+    tf::Quaternion q;
+    q = getQuat(reading);
+    tf::Matrix3x3 m(q);
+    m.getEulerYPR(yaw, pitch, roll);
+    std::cout << "Functtion \n Roll: " << roll << ", Pitch: " << ", Yaw: " << yaw << std::endl;
+
+
 
     freq_diag_.tick();
     clearErrorStatus();  // If we got here, then the IMU really is working.
