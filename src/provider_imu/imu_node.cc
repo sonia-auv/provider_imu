@@ -301,7 +301,14 @@ int ImuNode::publish_datum() {
     q = getQuat(reading);
     tf::Matrix3x3 m(q);
     //m.getEulerYPR(yaw, pitch, roll);
-    m.getRPY(roll, pitch, yaw);
+    double a,b,c,d;
+    a = q.getW();
+    b = q.getX();
+    c = q.getY();
+    d = q.getZ();
+    roll = atan((2*(a*b+c*d))/(pow(a,2)-pow(b,2)-pow(c,2)+pow(d,2)));
+    yaw = atan((2*(a*d+b*c))/(pow(a,2)+pow(b,2)-pow(c,2)-pow(d,2)));
+    pitch = -asin(2*(b*d-a*c));
     std::cout << "Functtion \n Roll: " << (roll/(2*M_PI))*360 << ", Pitch: " << (pitch/(2*M_PI))*360 << ", Yaw: " << (yaw/(2*M_PI))*360 << std::endl;
 
 
