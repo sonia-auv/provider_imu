@@ -4,9 +4,6 @@
 
   <arg name="record_imu" default="true" />
 
-  <node pkg="rosbag" type="rosbag" name="rosbag_record_imu"
-        arg="record -o /imu/data if="$(arg record_imu)"
-
   <node pkg="provider_imu" type="provider_imu_node" name="provider_imu_node" output="screen">
     <param name="time_offset" value="-0.040" />
     <param name="port"  type="string" value="/dev/ttyACM0" />
@@ -14,6 +11,7 @@
     <param name="frameid"  type="string" value="imu" />
     <param name="autocalibrate" type="bool" value="true" />
     <param name="angular_velocity_stdev" type="double" value="0.00017" />
+    arg="record -o /imu/data if="$(arg record_imu)"
   </node>
 
 </launch>
