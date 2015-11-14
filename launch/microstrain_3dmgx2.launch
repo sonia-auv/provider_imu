@@ -11,7 +11,7 @@
     <param name="frameid"  type="string" value="imu" />
     <param name="autocalibrate" type="bool" value="true" />
     <param name="angular_velocity_stdev" type="double" value="0.00017" />
-    arg="record -o /imu/data if="$(arg record_imu)"
+    <arg="record -o /logs/imu_data /imu/data/" if="$(arg record_imu)"/>
   </node>
 
 </launch>
