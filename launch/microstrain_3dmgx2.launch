@@ -9,9 +9,5 @@
     <param name="frameid"  type="string" value="imu" />
     <param name="autocalibrate" type="bool" value="true" />
     <param name="angular_velocity_stdev" type="double" value="0.00017" />
-  </node>
-
-  <node pkg="rosbag" type="record" name="record" output="screen" args="-o
-    /bagfiles/imu_data /imu/data"/>
 
 </launch>
