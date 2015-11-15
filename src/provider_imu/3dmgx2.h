@@ -1,7 +1,7 @@
-/*
- *  Player - One Hell of a Robot Server
- *  Copyright (C) 2008-2010  Willow Garage
- *
+/**
+ * \file	3dmgx2.h
+ * \copyright Copyright (C) 2008-20010  Willow Garage. All rights reserved.
+ * \section LICENSE
  *
  *  This library is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU Lesser General Public
@@ -125,11 +125,14 @@ class IMU {
     CMD_GYROSTAB_ANGRATE_MAG = 0xD2,
     CMD_DELVEL_DELANG_MAG = 0xD3,
     CMD_DEV_ID_STR = 0xEA,
-    CMD_STOP_CONTINUOUS = 0xFA
+    CMD_STOP_CONTINUOUS = 0xFA,
+    CMD_FIRMWARE_VERSION = 0xE9,
+    CMD_FIRMWARE_UPDATE = 0xFD,
+    CMD_RESET_IMU = 0xFE
   };
 
   //! Enumeration of possible identifier strings for the
-  //getDeviceIdentifierString command.
+  // getDeviceIdentifierString command.
 
   enum id_string {
     ID_MODEL_NUMBER = 0,
@@ -272,11 +275,17 @@ class IMU {
    */
   bool getDeviceIdentifierString(id_string type, char id[17]);
 
+  // This command will do a soft reset
+  void reset();
+
+  // This command will return the software version in the imu
+  std::string getFirmware();
+
  private:
   //! Send a command to the IMU and wait for a reply
   int transact(void *cmd, int cmd_len, void *rep, int rep_len, int timeout = 0);
 
-  //! Send a single packet frmo the IMU
+  //! Send a single packet to the IMU
   int send(void *cmd, int cmd_len);
 
   //! Receive a particular message from the IMU

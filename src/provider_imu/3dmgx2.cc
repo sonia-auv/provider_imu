@@ -1,7 +1,7 @@
-/*
- *  Player - One Hell of a Robot Server
- *  Copyright (C) 2008-20010  Willow Garage
- *
+/**
+ * \file	3dmgx2.cc
+ * \copyright Copyright (C) 2008-20010  Willow Garage. All rights reserved.
+ * \section LICENSE
  *
  *  This library is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU Lesser General Public
@@ -18,24 +18,19 @@
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-#include <assert.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <math.h>
 #include <stdio.h>
 #include <string.h>
-#include <sys/stat.h>
 #include <termios.h>
 #include <unistd.h>
 #include <netinet/in.h>
-#include <stdlib.h>
-
 #include <sys/time.h>
-
-//#include <ros/console.h>
-
 #include "provider_imu/3dmgx2.h"
 #include "poll.h"
+#include <iostream>
+#include <sstream>
 
 //! Macro for throwing an exception with a message
 #define IMU_EXCEPT(except, msg, ...)                                \
@@ -45,6 +40,10 @@
              ##__VA_ARGS__, __FUNCTION__);                          \
     throw except(buf);                                              \
   }
+
+/* ideally it would be nice to feed these functions back into willowimu */
+#define CMD_ACCEL_ANGRATE_MAG_ORIENT_REP_LEN 79
+#define CMD_RAW_ACCEL_ANGRATE_LEN 31
 
 // Some systems (e.g., OS X) require explicit externing of static class
 // members.
@@ -89,16 +88,22 @@ static unsigned long long time_helper() {
 #endif
 }
 
-////////////////////////////////////////////////////////////////////////////////
-// Constructor
+//==============================================================================
+// C / D T O R   S E C T I O N
+
+//------------------------------------------------------------------------------
+//
 microstrain_3dmgx2_imu::IMU::IMU() : fd(-1), continuous(false), is_gx3(false) {}
 
-////////////////////////////////////////////////////////////////////////////////
-// Destructor
+//------------------------------------------------------------------------------
+//
 microstrain_3dmgx2_imu::IMU::~IMU() { closePort(); }
 
-////////////////////////////////////////////////////////////////////////////////
-// Open the IMU port
+//==============================================================================
+// M E T H O D S   S E C T I O N
+
+//------------------------------------------------------------------------------
+//
 void microstrain_3dmgx2_imu::IMU::openPort(const char *port_name) {
   closePort();  // In case it was previously open, try to close it first.
 
@@ -168,8 +173,8 @@ void microstrain_3dmgx2_imu::IMU::openPort(const char *port_name) {
                "Tcflush failed. Please report this error if you see it.");
 }
 
-////////////////////////////////////////////////////////////////////////////////
-// Close the IMU port
+//------------------------------------------------------------------------------
+//
 void microstrain_3dmgx2_imu::IMU::closePort() {
   if (fd != -1) {
     if (continuous) {
@@ -189,8 +194,8 @@ void microstrain_3dmgx2_imu::IMU::closePort() {
   }
 }
 
-////////////////////////////////////////////////////////////////////////////////
-// Initialize time information
+//------------------------------------------------------------------------------
+//
 void microstrain_3dmgx2_imu::IMU::initTime(double fix_off) {
   wraps = 0;
 
@@ -215,8 +220,8 @@ void microstrain_3dmgx2_imu::IMU::initTime(double fix_off) {
   fixed_offset = fix_off;
 }
 
-////////////////////////////////////////////////////////////////////////////////
-// Initialize IMU gyros
+//------------------------------------------------------------------------------
+//
 void microstrain_3dmgx2_imu::IMU::initGyros(double *bias_x, double *bias_y,
                                             double *bias_z) {
   wraps = 0;
@@ -238,8 +243,8 @@ void microstrain_3dmgx2_imu::IMU::initGyros(double *bias_x, double *bias_y,
   if (bias_z) *bias_z = extract_float(rep + 9);
 }
 
-////////////////////////////////////////////////////////////////////////////////
-// Put the IMU into continuous mode
+//------------------------------------------------------------------------------
+//
 bool microstrain_3dmgx2_imu::IMU::setContinuous(cmd command) {
   uint8_t cmd[4];
   uint8_t rep[8];
@@ -260,8 +265,8 @@ bool microstrain_3dmgx2_imu::IMU::setContinuous(cmd command) {
   return true;
 }
 
-////////////////////////////////////////////////////////////////////////////////
-// Take the IMU out of continuous mode
+//------------------------------------------------------------------------------
+//
 void microstrain_3dmgx2_imu::IMU::stopContinuous() {
   uint8_t cmd[3];
 
@@ -283,8 +288,8 @@ void microstrain_3dmgx2_imu::IMU::stopContinuous() {
   continuous = false;
 }
 
-////////////////////////////////////////////////////////////////////////////////
-// Receive ACCEL_ANGRATE_MAG message
+//------------------------------------------------------------------------------
+//
 void microstrain_3dmgx2_imu::IMU::receiveAccelAngrateMag(uint64_t *time,
                                                          double accel[3],
                                                          double angrate[3],
@@ -324,8 +329,8 @@ void microstrain_3dmgx2_imu::IMU::receiveAccelAngrateMag(uint64_t *time,
   *time = filterTime(imu_time, sys_time);
 }
 
-////////////////////////////////////////////////////////////////////////////////
-// Receive ACCEL_ANGRATE_ORIENTATION message
+//------------------------------------------------------------------------------
+//
 void microstrain_3dmgx2_imu::IMU::receiveAccelAngrateOrientation(
     uint64_t *time, double accel[3], double angrate[3], double orientation[9]) {
   int i, k;
@@ -363,8 +368,8 @@ void microstrain_3dmgx2_imu::IMU::receiveAccelAngrateOrientation(
   *time = filterTime(imu_time, sys_time);
 }
 
-////////////////////////////////////////////////////////////////////////////////
-// Receive ACCEL_ANGRATE message
+//------------------------------------------------------------------------------
+//
 void microstrain_3dmgx2_imu::IMU::receiveAccelAngrate(uint64_t *time,
                                                       double accel[3],
                                                       double angrate[3]) {
@@ -394,8 +399,8 @@ void microstrain_3dmgx2_imu::IMU::receiveAccelAngrate(uint64_t *time,
   *time = filterTime(imu_time, sys_time);
 }
 
-////////////////////////////////////////////////////////////////////////////////
-// Receive DELVEL_DELANG message
+//------------------------------------------------------------------------------
+//
 void microstrain_3dmgx2_imu::IMU::receiveDelvelDelang(uint64_t *time,
                                                       double delvel[3],
                                                       double delang[3]) {
@@ -425,8 +430,8 @@ void microstrain_3dmgx2_imu::IMU::receiveDelvelDelang(uint64_t *time,
   *time = filterTime(imu_time, sys_time);
 }
 
-////////////////////////////////////////////////////////////////////////////////
-// Receive EULER message
+//------------------------------------------------------------------------------
+//
 void microstrain_3dmgx2_imu::IMU::receiveEuler(uint64_t *time, double *roll,
                                                double *pitch, double *yaw) {
   uint8_t rep[19];
@@ -444,9 +449,8 @@ void microstrain_3dmgx2_imu::IMU::receiveEuler(uint64_t *time, double *roll,
   *time = filterTime(imu_time, sys_time);
 }
 
-////////////////////////////////////////////////////////////////////////////////
-// Receive Device Identifier String
-
+//------------------------------------------------------------------------------
+//
 bool microstrain_3dmgx2_imu::IMU::getDeviceIdentifierString(id_string type,
                                                             char id[17]) {
   uint8_t cmd[2];
@@ -469,11 +473,8 @@ bool microstrain_3dmgx2_imu::IMU::getDeviceIdentifierString(id_string type,
   return true;
 }
 
-/* ideally it would be nice to feed these functions back into willowimu */
-#define CMD_ACCEL_ANGRATE_MAG_ORIENT_REP_LEN 79
-#define CMD_RAW_ACCEL_ANGRATE_LEN 31
-////////////////////////////////////////////////////////////////////////////////
-// Receive ACCEL_ANGRATE_MAG_ORIENT message
+//------------------------------------------------------------------------------
+//
 void microstrain_3dmgx2_imu::IMU::receiveAccelAngrateMagOrientation(
     uint64_t *time, double accel[3], double angrate[3], double mag[3],
     double orientation[9]) {
@@ -517,9 +518,8 @@ void microstrain_3dmgx2_imu::IMU::receiveAccelAngrateMagOrientation(
   *time = filterTime(imu_time, sys_time);
 }
 
-////////////////////////////////////////////////////////////////////////////////
-// Receive RAW message
-// (copy of receive accel angrate but with raw cmd)
+//------------------------------------------------------------------------------
+//
 void microstrain_3dmgx2_imu::IMU::receiveRawAccelAngrate(uint64_t *time,
                                                          double accel[3],
                                                          double angrate[3]) {
@@ -550,8 +550,8 @@ void microstrain_3dmgx2_imu::IMU::receiveRawAccelAngrate(uint64_t *time,
   *time = filterTime(imu_time, sys_time);
 }
 
-////////////////////////////////////////////////////////////////////////////////
-// Extract time and process rollover
+//------------------------------------------------------------------------------
+//
 uint64_t microstrain_3dmgx2_imu::IMU::extractTime(uint8_t *addr) {
   uint32_t ticks = bswap_32(*(uint32_t *)(addr));
 
@@ -577,9 +577,8 @@ uint64_t microstrain_3dmgx2_imu::IMU::extractTime(uint8_t *addr) {
                                                                // consts (???)
 }
 
-////////////////////////////////////////////////////////////////////////////////
-// Send a packet and wait for a reply from the IMU.
-// Returns the number of bytes read.
+//------------------------------------------------------------------------------
+//
 int microstrain_3dmgx2_imu::IMU::transact(void *cmd, int cmd_len, void *rep,
                                           int rep_len, int timeout) {
   send(cmd, cmd_len);
@@ -587,9 +586,8 @@ int microstrain_3dmgx2_imu::IMU::transact(void *cmd, int cmd_len, void *rep,
   return receive(*(uint8_t *)cmd, rep, rep_len, timeout);
 }
 
-////////////////////////////////////////////////////////////////////////////////
-// Send a packet to the IMU.
-// Returns the number of bytes written.
+//------------------------------------------------------------------------------
+//
 int microstrain_3dmgx2_imu::IMU::send(void *cmd, int cmd_len) {
   int bytes;
 
@@ -611,6 +609,8 @@ int microstrain_3dmgx2_imu::IMU::send(void *cmd, int cmd_len) {
   return bytes;
 }
 
+//------------------------------------------------------------------------------
+//
 static int read_with_timeout(int fd, void *buff, size_t count, int timeout) {
   ssize_t nbytes;
   int retval;
@@ -639,9 +639,8 @@ static int read_with_timeout(int fd, void *buff, size_t count, int timeout) {
   return nbytes;
 }
 
-////////////////////////////////////////////////////////////////////////////////
-// Receive a reply from the IMU.
-// Returns the number of bytes read.
+//------------------------------------------------------------------------------
+//
 int microstrain_3dmgx2_imu::IMU::receive(uint8_t command, void *rep,
                                          int rep_len, int timeout,
                                          uint64_t *sys_time) {
@@ -695,8 +694,8 @@ int microstrain_3dmgx2_imu::IMU::receive(uint8_t command, void *rep,
   return bytes;
 }
 
-////////////////////////////////////////////////////////////////////////////////
-// Kalman filter for time estimation
+//------------------------------------------------------------------------------
+//
 uint64_t microstrain_3dmgx2_imu::IMU::filterTime(uint64_t imu_time,
                                                  uint64_t sys_time) {
   // first calculate the sum of KF_NUM_SUM measurements
@@ -721,16 +720,75 @@ uint64_t microstrain_3dmgx2_imu::IMU::filterTime(uint64_t imu_time,
   return imu_time - toUint64_t(offset) + toUint64_t(fixed_offset);
 }
 
-////////////////////////////////////////////////////////////////////////////////
-// convert uint64_t time to double time
+//------------------------------------------------------------------------------
+//
 double microstrain_3dmgx2_imu::IMU::toDouble(uint64_t time) {
   double res = trunc(time / 1e9);
   res += (((double)time) / 1e9) - res;
   return res;
 }
 
-////////////////////////////////////////////////////////////////////////////////
-// convert double time to uint64_t time
+//------------------------------------------------------------------------------
+//
 uint64_t microstrain_3dmgx2_imu::IMU::toUint64_t(double time) {
   return (uint64_t)(time * 1e9);
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// This command will do a soft reset
+void microstrain_3dmgx2_imu::IMU::reset() {
+  uint8_t cmd[2];
+
+  cmd[0] = CMD_RESET_IMU;
+  cmd[1] = 0x9E;  // Confirms user intent
+  cmd[2] = 0x3A;  // Confirms user intent
+
+  send(cmd, sizeof(cmd));
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// This command will return the version of the firmware of the imu
+std::string microstrain_3dmgx2_imu::IMU::getFirmware() {
+  uint8_t cmd[1];
+  uint8_t rep[7];
+  uint32_t version;
+  std::string firm_version;
+
+  cmd[0] = CMD_FIRMWARE_VERSION;
+  transact(cmd, sizeof(cmd), rep, sizeof(rep), 100);
+
+  uint16_t checksum = 0;
+  for (int i = 0; i < sizeof(rep) - 2; i++) {
+    checksum += ((uint8_t *)rep)[i];
+  }
+
+  if (rep[0] != CMD_FIRMWARE_VERSION) {
+    IMU_EXCEPT(microstrain_3dmgx2_imu::Exception,
+               "Wrong command receive from the IMU");
+  } else if (checksum !=
+             bswap_16(*(uint16_t *)((uint8_t *)rep + sizeof(rep) - 2))) {
+    IMU_EXCEPT(microstrain_3dmgx2_imu::CorruptedDataException,
+               "invalid checksum.\n Something went wrong.");
+  } else {
+    version = rep[1];
+    version = version << 8;
+    version = version | rep[2];
+    version = version << 8;
+    version = version | rep[3];
+    version = version << 8;
+    version = version | rep[4];
+
+    firm_version = std::to_string(version);
+
+    std::stringstream ss;
+    ss << firm_version.substr(0,1);
+    ss << ".";
+    ss << firm_version.substr(1,1);
+    ss << ".";		
+    ss << firm_version.substr(2,2);
+  
+    firm_version  = ss.str();    
+  }
+
+  return firm_version;
 }

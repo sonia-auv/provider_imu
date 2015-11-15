@@ -1,8 +1,7 @@
-/*********************************************************************
- * Software License Agreement (BSD License)
- *
- *  Copyright (c) 2010, Willow Garage, Inc.
- *  All rights reserved.
+/**
+ * \file	get_id.cc
+ * \copyright Copyright (C) 2008-20010  Willow Garage. All rights reserved.
+ * \section LICENSE
  *
  *  Redistribution and use in source and binary forms, with or without
  *  modification, are permitted provided that the following conditions
@@ -30,14 +29,10 @@
  *  LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
  *  ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  *  POSSIBILITY OF SUCH DAMAGE.
- *********************************************************************/
-
-/**< \author Kevin Watts */
-/**< \brief Recovers hardware ID from IMU device */
+ */
 
 #include <string>
 #include <boost/format.hpp>
-
 #include "ros/console.h"
 #include "provider_imu/3dmgx2.h"
 #include "log4cxx/logger.h"
@@ -103,6 +98,11 @@ int main(int argc, char **argv) {
 
   if (verbose) fprintf(stdout, "IMU Device at port %s has ID: ", argv[1]);
   fprintf(stdout, "%s\n", id.c_str());
+
+  std::string firmware = imu.getFirmware();
+
+
+  std::cout << "Firmware version is: " << firmware << std::endl;
 
   try {
     imu.closePort();
