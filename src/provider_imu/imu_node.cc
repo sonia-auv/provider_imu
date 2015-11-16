@@ -167,7 +167,7 @@ int ImuNode::Start() {
 
   try {
     try {
-      imu.openPort(port.c_str());
+      imu.OpenPort(port.c_str());
     } catch (std::runtime_error &e) {
       error_count_++;
       SetErrorStatus(e.what());
@@ -179,7 +179,7 @@ int ImuNode::Start() {
 
     ROS_INFO("Initializing IMU time with offset %f.", offset_);
 
-    imu.initTime(offset_);
+    imu.InitTime(offset_);
 
     if (autocalibrate_ || calibrate_requested_) {
       CheckCalibration();
@@ -194,7 +194,7 @@ int ImuNode::Start() {
 
     ROS_INFO("IMU sensor initialized.");
 
-    imu.setContinuous(cmd);
+    imu.SetContinuous(cmd);
 
     freq_diag_.clear();
 
@@ -225,13 +225,13 @@ std::string ImuNode::getID(bool output_info) {
   char dev_model_num[17];
   char dev_serial_num[17];
   char dev_opt[17];
-  imu.getDeviceIdentifierString(provider_imu::ImuDriver::ID_DEVICE_NAME,
+  imu.GetDeviceIdentifierString(provider_imu::ImuDriver::ID_DEVICE_NAME,
                                 dev_name);
-  imu.getDeviceIdentifierString(provider_imu::ImuDriver::ID_MODEL_NUMBER,
+  imu.GetDeviceIdentifierString(provider_imu::ImuDriver::ID_MODEL_NUMBER,
                                 dev_model_num);
-  imu.getDeviceIdentifierString(provider_imu::ImuDriver::ID_SERIAL_NUMBER,
+  imu.GetDeviceIdentifierString(provider_imu::ImuDriver::ID_SERIAL_NUMBER,
                                 dev_serial_num);
-  imu.getDeviceIdentifierString(provider_imu::ImuDriver::ID_DEVICE_OPTIONS,
+  imu.GetDeviceIdentifierString(provider_imu::ImuDriver::ID_DEVICE_OPTIONS,
                                 dev_opt);
 
   if (output_info)
@@ -256,7 +256,7 @@ std::string ImuNode::getID(bool output_info) {
 int ImuNode::Stop() {
   if (running) {
     try {
-      imu.closePort();
+      imu.ClosePort();
     } catch (std::runtime_error &e) {
       error_count_++;
       ROS_INFO("Exception thrown while stopping IMU. %s", e.what());
@@ -374,7 +374,7 @@ void ImuNode::PublishIsCalibrated() {
 //
 void ImuNode::PreTest(diagnostic_updater::DiagnosticStatusWrapper &status) {
   try {
-    imu.closePort();
+    imu.ClosePort();
 
     status.summary(0, "Device closed successfully.");
   } catch (std::runtime_error &e) {
@@ -397,7 +397,7 @@ void ImuNode::InterruptionTest(
 //------------------------------------------------------------------------------
 //
 void ImuNode::ConnectTest(diagnostic_updater::DiagnosticStatusWrapper &status) {
-  imu.openPort(port.c_str());
+  imu.OpenPort(port.c_str());
 
   status.summary(0, "Connected successfully.");
 }
@@ -414,7 +414,7 @@ void ImuNode::ReadIDTest(diagnostic_updater::DiagnosticStatusWrapper &status) {
 //
 void ImuNode::GyroBiasTest(
     diagnostic_updater::DiagnosticStatusWrapper &status) {
-  imu.initGyros(&bias_x_, &bias_y_, &bias_z_);
+  imu.InitGyros(&bias_x_, &bias_y_, &bias_z_);
 
   status.summary(0, "Successfully calculated gyro biases.");
 
@@ -431,7 +431,7 @@ void ImuNode::GetData(sensor_msgs::Imu &data) {
   double angrate[3];
   double orientation[9];
 
-  imu.receiveAccelAngrateOrientation(&time, accel, angrate, orientation);
+  imu.ReceiveAccelAngrateOrientation(&time, accel, angrate, orientation);
   data.linear_acceleration.x = accel[0];
   data.linear_acceleration.y = accel[1];
   data.linear_acceleration.z = accel[2];
@@ -461,7 +461,7 @@ tf::Quaternion ImuNode::GetQuaternion(sensor_msgs::Imu &data) {
   double angrate[3];
   double orientation[9];
 
-  imu.receiveAccelAngrateOrientation(&time, accel, angrate, orientation);
+  imu.ReceiveAccelAngrateOrientation(&time, accel, angrate, orientation);
   data.linear_acceleration.x = accel[0];
   data.linear_acceleration.y = accel[1];
   data.linear_acceleration.z = accel[2];
@@ -489,14 +489,14 @@ void ImuNode::StreamedDataTest(
   double accel[3];
   double angrate[3];
 
-  if (!imu.setContinuous(provider_imu::ImuDriver::CMD_ACCEL_ANGRATE)) {
+  if (!imu.SetContinuous(provider_imu::ImuDriver::CMD_ACCEL_ANGRATE)) {
     status.summary(2, "Could not start streaming data.");
   } else {
     for (int i = 0; i < 100; i++) {
-      imu.receiveAccelAngrate(&time, accel, angrate);
+      imu.ReceiveAccelAngrate(&time, accel, angrate);
     }
 
-    imu.stopContinuous();
+    imu.StopContinuous();
 
     status.summary(0, "Data streamed successfully.");
   }
@@ -515,20 +515,20 @@ void ImuNode::GravityTest(diagnostic_updater::DiagnosticStatusWrapper &status) {
   double grav_y = 0.0;
   double grav_z = 0.0;
 
-  if (!imu.setContinuous(provider_imu::ImuDriver::CMD_ACCEL_ANGRATE)) {
+  if (!imu.SetContinuous(provider_imu::ImuDriver::CMD_ACCEL_ANGRATE)) {
     status.summary(2, "Could not start streaming data.");
   } else {
     int num = 200;
 
     for (int i = 0; i < num; i++) {
-      imu.receiveAccelAngrate(&time, accel, angrate);
+      imu.ReceiveAccelAngrate(&time, accel, angrate);
 
       grav_x += accel[0];
       grav_y += accel[1];
       grav_z += accel[2];
     }
 
-    imu.stopContinuous();
+    imu.StopContinuous();
 
     grav += sqrt(pow(grav_x / (double) (num), 2.0) +
         pow(grav_y / (double) (num), 2.0) +
@@ -552,7 +552,7 @@ void ImuNode::GravityTest(diagnostic_updater::DiagnosticStatusWrapper &status) {
 
 void ImuNode::DisconnectTest(
     diagnostic_updater::DiagnosticStatusWrapper &status) {
-  imu.closePort();
+  imu.ClosePort();
 
   status.summary(0, "Disconnected successfully.");
 }
@@ -561,10 +561,10 @@ void ImuNode::DisconnectTest(
 //
 void ImuNode::ResumeTest(diagnostic_updater::DiagnosticStatusWrapper &status) {
   if (running) {
-    imu.openPort(port.c_str());
+    imu.OpenPort(port.c_str());
     freq_diag_.clear();
 
-    if (imu.setContinuous(cmd) != true) {
+    if (imu.SetContinuous(cmd) != true) {
       status.summary(2, "Failed to resume previous mode of operation.");
       return;
     }
@@ -617,7 +617,7 @@ bool ImuNode::AddOffsetCallback(provider_imu::AddOffset::Request &req,
   ROS_INFO("Total IMU time offset is now %f.", offset_);
 
   // send changes to imu driver
-  imu.setFixedOffset(offset_);
+  imu.SetFixedOffset(offset_);
 
   // write changes to param server
   private_node_handle_.setParam("time_offset", offset_);
@@ -640,9 +640,9 @@ bool ImuNode::CalibrateCallback(std_srvs::Empty::Request &req,
       Stop();
       Start();  // Start will do the calibration.
     } else {
-      imu.openPort(port.c_str());
+      imu.OpenPort(port.c_str());
       CheckCalibration();
-      imu.closePort();
+      imu.ClosePort();
     }
   } catch (std::runtime_error &e) {
     error_count_++;
@@ -664,10 +664,10 @@ bool ImuNode::CalibrateCallback(std_srvs::Empty::Request &req,
 void ImuNode::CheckCalibration() {  // Expects to be called with the IMU
   // stopped.
   ROS_INFO("Calibrating IMU gyros.");
-  imu.initGyros(&bias_x_, &bias_y_, &bias_z_);
+  imu.InitGyros(&bias_x_, &bias_y_, &bias_z_);
 
   // check calibration
-  if (!imu.setContinuous(provider_imu::ImuDriver::CMD_ACCEL_ANGRATE_ORIENT)) {
+  if (!imu.SetContinuous(provider_imu::ImuDriver::CMD_ACCEL_ANGRATE_ORIENT)) {
     ROS_ERROR("Could not start streaming data to verify calibration");
   } else {
     double x_rate = 0.0;
@@ -714,7 +714,7 @@ void ImuNode::CheckCalibration() {  // Expects to be called with the IMU
           average_rate * 180 * 1000 / M_PI,
           max_drift_rate_ * 180 * 1000 / M_PI);
     }
-    imu.stopContinuous();
+    imu.StopContinuous();
   }
 }
 

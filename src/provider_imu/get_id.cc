@@ -41,19 +41,19 @@ namespace provider_imu {
 
 std::string GetID(provider_imu::ImuDriver &imu) {
   char dev_name[17];
-  imu.getDeviceIdentifierString(provider_imu::ImuDriver::ID_DEVICE_NAME,
+  imu.GetDeviceIdentifierString(provider_imu::ImuDriver::ID_DEVICE_NAME,
                                 dev_name);
 
   char dev_model_num[17];
-  imu.getDeviceIdentifierString(provider_imu::ImuDriver::ID_MODEL_NUMBER,
+  imu.GetDeviceIdentifierString(provider_imu::ImuDriver::ID_MODEL_NUMBER,
                                 dev_model_num);
 
   char dev_serial_num[17];
-  imu.getDeviceIdentifierString(provider_imu::ImuDriver::ID_SERIAL_NUMBER,
+  imu.GetDeviceIdentifierString(provider_imu::ImuDriver::ID_SERIAL_NUMBER,
                                 dev_serial_num);
 
   char dev_opt[17];
-  imu.getDeviceIdentifierString(provider_imu::ImuDriver::ID_DEVICE_OPTIONS,
+  imu.GetDeviceIdentifierString(provider_imu::ImuDriver::ID_DEVICE_OPTIONS,
                                 dev_opt);
 
   char *dev_name_ptr = dev_name;
@@ -100,7 +100,7 @@ int main(int argc, char **argv) {
   provider_imu::ImuDriver imu;
 
   try {
-    imu.openPort(argv[1]);
+    imu.OpenPort(argv[1]);
   } catch (std::runtime_error &e) {
     fprintf(stderr,
             "Unable to open IMU at port %s. IMU may be disconnected.\n%s",
@@ -108,19 +108,19 @@ int main(int argc, char **argv) {
     return 1;
   }
 
-  imu.initTime(0.0);
+  imu.InitTime(0.0);
 
   std::string id = provider_imu::GetID(imu);
 
   if (verbose) fprintf(stdout, "IMU Device at port %s has ID: ", argv[1]);
   fprintf(stdout, "%s\n", id.c_str());
 
-  std::string firmware = imu.getFirmware();
+  std::string firmware = imu.GetFirmware();
 
   std::cout << "Firmware version is: " << firmware << std::endl;
 
   try {
-    imu.closePort();
+    imu.ClosePort();
   } catch (std::runtime_error &e) {
     fprintf(stderr, "Exception thrown while stopping IMU.\n%s", e.what());
     return 1;

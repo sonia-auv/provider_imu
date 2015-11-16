@@ -141,10 +141,10 @@ class ImuDriver {
    * \param port_name   A character array containing the name of the port
    *
    */
-  void openPort(const char *port_name);
+  void OpenPort(const char *port_name);
 
   //! Close the port
-  void closePort();
+  void ClosePort();
 
   //! Initialize timing variables.
   /**
@@ -153,7 +153,7 @@ class ImuDriver {
    *
    * \param fix_off this fixed offset will be added to the timestamp of the imu
    */
-  void initTime(double fix_off);
+  void InitTime(double fix_off);
 
   //! Initial gyros
   /**
@@ -166,7 +166,7 @@ class ImuDriver {
    * \param bias_y   Pointer to double where y bias will be placed.
    * \param bias_z   Pointer to double where z bias will be placed.
    */
-  void initGyros(double *bias_x = 0, double *bias_y = 0, double *bias_z = 0);
+  void InitGyros(double *bias_x = 0, double *bias_y = 0, double *bias_z = 0);
 
   //! Put the device in continuous mode
   /**
@@ -177,10 +177,10 @@ class ImuDriver {
    *
    * \return  Whether or not continuous mode was enabled successfully.
    */
-  bool setContinuous(cmd command);
+  bool SetContinuous(cmd command);
 
   //! Take the device out of continous mode.
-  void stopContinuous();
+  void StopContinuous();
 
   //! Read a message of type "ACCEL_ANGRATE"
   /**
@@ -188,7 +188,7 @@ class ImuDriver {
    * \param accel   array of accelerations which will be filled
    * \param angrate array of angular rates which will be filled
    */
-  void receiveAccelAngrate(uint64_t *time, double accel[3], double angrate[3]);
+  void ReceiveAccelAngrate(uint64_t *time, double *accel, double *angrate);
 
   //! Read a message of type "DELVEL_DELANG"
   /**
@@ -196,7 +196,7 @@ class ImuDriver {
    * \param delvel array of accelerations which will be filled
    * \param delang array of angular rates which will be filled
    */
-  void receiveDelvelDelang(uint64_t *time, double delvel[3], double delang[3]);
+  void ReceiveDelvelDelang(uint64_t *time, double *delvel, double *delang);
 
   //! Read a message of type "ACCEL_ANGRATE_MAG"
   /**
@@ -205,8 +205,8 @@ class ImuDriver {
    * \param angrate array of angular rates which will be filled
    * \param mag     array of magnetometer orientations which will be filled
    */
-  void receiveAccelAngrateMag(uint64_t *time, double accel[3],
-                              double angrate[3], double mag[3]);
+  void ReceiveAccelAngrateMag(uint64_t *time, double *accel,
+                              double *angrate, double *mag);
 
   //! Read a message of type "EULER"
   /**
@@ -215,7 +215,7 @@ class ImuDriver {
    * \param pitch   Pointer to pitch value which will be filled
    * \param yaw     Pointer to yaw value which will be filled
    */
-  void receiveEuler(uint64_t *time, double *roll, double *pitch, double *yaw);
+  void ReceiveEuler(uint64_t *time, double *roll, double *pitch, double *yaw);
 
   //! Read a message of type "ACCEL_ANGRATE_ORIENTATION"
   /**
@@ -224,8 +224,8 @@ class ImuDriver {
    * \param angrate     array of angular rates which will be filled
    * \param orientation orientation matrix which will be filled
    */
-  void receiveAccelAngrateOrientation(uint64_t *time, double accel[3],
-                                      double angrate[3], double orientation[9]);
+  void ReceiveAccelAngrateOrientation(uint64_t *time, double *accel,
+                                      double *angrate, double *orientation);
 
   //! Read a message of type "ACCEL_ANGRATE_MAG_ORIENT"
   /**
@@ -235,9 +235,9 @@ class ImuDriver {
    * \param mag     array of magnetometer orientations which will be filled
    * \param orientation orientation matrix which will be filled
    */
-  void receiveAccelAngrateMagOrientation(uint64_t *time, double accel[3],
-                                         double angrate[3], double mag[3],
-                                         double orientation[9]);
+  void ReceiveAccelAngrateMagOrientation(uint64_t *time, double *accel,
+                                         double *angrate, double *mag,
+                                         double *orientation);
 
   //! Read a message of type "CMD_RAW"
   /**
@@ -245,14 +245,14 @@ class ImuDriver {
    * \param accel   array of accelerations which will be filled
    * \param angrate array of angular rates which will be filled
    */
-  void receiveRawAccelAngrate(uint64_t *time, double accel[3],
-                              double angrate[3]);
+  void ReceiveRawAccelAngrate(uint64_t *time, double *accel,
+                              double *angrate);
 
   //! Set the fixed time offset
   /**
    * \param fix_off  Fixed time offset in seconds
    */
-  void setFixedOffset(double fix_off) { fixed_offset = fix_off; };
+  void SetFixedOffset(double fix_off) { fixed_offset_ = fix_off; };
 
   //! Read one of the device identifier strings
   /**
@@ -260,72 +260,78 @@ class ImuDriver {
    * \param id Array that gets filled with the identifier string
    * \return True if successful
    */
-  bool getDeviceIdentifierString(id_string type, char id[17]);
+  bool GetDeviceIdentifierString(id_string type, char *id);
 
   // This command will do a soft reset
-  void reset();
+  void Reset();
 
   // This command will return the software version in the imu
-  std::string getFirmware();
+  std::string GetFirmware();
 
  private:
   //! Send a command to the IMU and wait for a reply
-  int transact(void *cmd, int cmd_len, void *rep, int rep_len, int timeout = 0);
+  int Transact(void *cmd, int cmd_len, void *rep, int rep_len, int timeout = 0);
 
   //! Send a single packet to the IMU
-  int send(void *cmd, int cmd_len);
+  int Send(void *cmd, int cmd_len);
 
   //! Receive a particular message from the IMU
-  int receive(uint8_t command, void *rep, int rep_len, int timeout = 0,
+  int Receive(uint8_t command, void *rep, int rep_len, int timeout = 0,
               uint64_t *sys_time = NULL);
 
   //! Extract time from a pointer into an imu buffer
-  uint64_t extractTime(uint8_t *addr);
+  uint64_t ExtractTime(uint8_t *addr);
 
   //! Run the filter on the imu time and system times
-  uint64_t filterTime(uint64_t imu_time, uint64_t sys_time);
+  uint64_t FilterTime(uint64_t imu_time, uint64_t sys_time);
 
   //! Convert the uint64_t time to a double for numerical computations
-  double toDouble(uint64_t time);
+  double ToDouble(uint64_t time);
 
   //! Convert the double time back to a uint64_t
-  uint64_t toUint64_t(double time);
+  uint64_t ToUint64(double time);
 
   //! The file descriptor
-  int fd;
+  int file_descriptor_;
 
   //! The number of times the imu has wrapped
-  uint32_t wraps;
+  uint32_t wraps_;
 
   //! The number of ticks the initial offset is off by
-  uint32_t offset_ticks;
+  uint32_t offset_ticks_;
 
   //! The last number of ticks for computing wraparound
-  uint32_t last_ticks;
+  uint32_t last_ticks_;
 
   //! The different in the number of ticks
-  uint32_t diff_ticks;
+  uint32_t diff_ticks_;
 
   //! The time at which the imu was started
-  unsigned long long start_time;
+  unsigned long long start_time_;
 
   //! The estimate of time offset and driftrate
-  double time_est[2];
+  double time_est_[2];
 
   //! The covariances on time offset and driftrate
-  double P_time_est[2][2];
+  double P_time_est_[2][2];
 
   //! Whether continuous mode is enabled
-  bool continuous;
+  bool continuous_;
 
   //! A counter used by the filter
-  unsigned int counter;
+  unsigned int counter_;
 
   //! Variables used by the kalman computation
-  double fixed_offset, offset, d_offset, sum_meas;
+  double fixed_offset_;
+
+  double offset_;
+
+  double d_offset_;
+
+  double sum_meas_;
 
   //! Is the IMU a GX3?
-  bool is_gx3;
+  bool is_gx3_;
 };
 
 }  // namespace provider_imu

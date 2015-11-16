@@ -24,16 +24,16 @@ int main(int argc, char **argv) {
   provider_imu::ImuDriver imu;
 
   try {
-    imu.openPort(argv[1]);
+    imu.OpenPort(argv[1]);
   } catch (std::runtime_error &e) {
     std::cout << "unable to communicate with the IMU on port: " << argv[1]
               << "\n" << e.what() << std::endl;
     return 1;
   }
 
-  imu.initTime(0.0);
+  imu.InitTime(0.0);
 
-  imu.reset();
+  imu.Reset();
 
   ROS_INFO("Imu has been reset!");
 

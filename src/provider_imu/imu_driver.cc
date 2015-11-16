@@ -91,24 +91,24 @@ extern constexpr double ImuDriver::KF_K_2;
 
 //------------------------------------------------------------------------------
 //
-ImuDriver::ImuDriver() : fd(-1), continuous(false), is_gx3(false) {}
+ImuDriver::ImuDriver() : file_descriptor_(-1), continuous_(false), is_gx3_(false) {}
 
 //------------------------------------------------------------------------------
 //
-ImuDriver::~ImuDriver() { closePort(); }
+ImuDriver::~ImuDriver() { ClosePort(); }
 
 //==============================================================================
 // M E T H O D S   S E C T I O N
 
 //------------------------------------------------------------------------------
 //
-void ImuDriver::openPort(const char *port_name) {
-  closePort();  // In case it was previously open, try to close it first.
+void ImuDriver::OpenPort(const char *port_name) {
+  ClosePort();  // In case it was previously open, try to close it first.
 
   // Open the port
-  fd = open(port_name, O_RDWR | O_SYNC | O_NONBLOCK | O_NOCTTY,
-            S_IRUSR | S_IWUSR);
-  if (fd < 0) {
+  file_descriptor_ = open(port_name, O_RDWR | O_SYNC | O_NONBLOCK | O_NOCTTY,
+                          S_IRUSR | S_IWUSR);
+  if (file_descriptor_ < 0) {
     const char *extra_msg = "";
     switch (errno) {
       case EACCES:
@@ -135,7 +135,7 @@ void ImuDriver::openPort(const char *port_name) {
   fl.l_len = 0;
   fl.l_pid = getpid();
 
-  if (fcntl(fd, F_SETLK, &fl) != 0)
+  if (fcntl(file_descriptor_, F_SETLK, &fl) != 0)
     ATLAS_THROW(std::runtime_error,
                 atlas::Format("Device {0} is already locked. Try 'lsof | grep {1}' to find "
                "other processes that currently have the port open.",
@@ -143,7 +143,7 @@ void ImuDriver::openPort(const char *port_name) {
 
   // Change port settings
   struct termios term;
-  if (tcgetattr(fd, &term) < 0)
+  if (tcgetattr(file_descriptor_, &term) < 0)
     ATLAS_THROW(std::runtime_error,
                 atlas::Format("Unable to get serial port attributes. The port you specified "
                "({0}) may not be a serial port.",
@@ -153,7 +153,7 @@ void ImuDriver::openPort(const char *port_name) {
   cfsetispeed(&term, B115200);
   cfsetospeed(&term, B115200);
 
-  if (tcsetattr(fd, TCSAFLUSH, &term) < 0)
+  if (tcsetattr(file_descriptor_, TCSAFLUSH, &term) < 0)
     ATLAS_THROW(std::runtime_error,
                 atlas::Format("Unable to set serial port attributes. The port you specified "
                "({0}) may not be a serial port.",
@@ -162,65 +162,65 @@ void ImuDriver::openPort(const char *port_name) {
   /// everything on success.
 
   // Stop continuous mode
-  stopContinuous();
+  StopContinuous();
 
   // Make sure queues are empty before we begin
-  if (tcflush(fd, TCIOFLUSH) != 0)
+  if (tcflush(file_descriptor_, TCIOFLUSH) != 0)
     ATLAS_THROW(std::runtime_error,
                "Tcflush failed. Please report this error if you see it.");
 }
 
 //------------------------------------------------------------------------------
 //
-void ImuDriver::closePort() {
-  if (fd != -1) {
-    if (continuous) {
+void ImuDriver::ClosePort() {
+  if (file_descriptor_ != -1) {
+    if (continuous_) {
       try {
         // ROS_DEBUG("stopping continuous");
-        stopContinuous();
+        StopContinuous();
 
       } catch (std::runtime_error &e) {
         // std::runtime_errors here are fine since we are closing anyways
       }
     }
 
-    if (close(fd) != 0)
+    if (close(file_descriptor_) != 0)
       ATLAS_THROW(std::runtime_error, atlas::Format("Unable to close serial port; [{0}]",
                  strerror(errno)));
-    fd = -1;
+    file_descriptor_ = -1;
   }
 }
 
 //------------------------------------------------------------------------------
 //
-void ImuDriver::initTime(double fix_off) {
-  wraps = 0;
+void ImuDriver::InitTime(double fix_off) {
+  wraps_ = 0;
 
   uint8_t cmd[1];
   uint8_t rep[31];
   cmd[0] = CMD_RAW;
 
-  transact(cmd, sizeof(cmd), rep, sizeof(rep), 1000);
-  start_time = details::time_helper();
+  Transact(cmd, sizeof(cmd), rep, sizeof(rep), 1000);
+  start_time_ = details::time_helper();
 
   int k = 25;
-  offset_ticks = details::bswap_32(*(uint32_t *)(rep + k));
-  last_ticks = offset_ticks;
+  offset_ticks_ = details::bswap_32(*(uint32_t *)(rep + k));
+  last_ticks_ = offset_ticks_;
 
   // reset kalman filter state
-  offset = 0;
-  d_offset = 0;
-  sum_meas = 0;
-  counter = 0;
+  offset_ = 0;
+  d_offset_ = 0;
+  sum_meas_ = 0;
+  counter_ = 0;
 
   // fixed offset
-  fixed_offset = fix_off;
+  fixed_offset_ = fix_off;
 }
 
 //------------------------------------------------------------------------------
 //
-void ImuDriver::initGyros(double *bias_x, double *bias_y, double *bias_z) {
-  wraps = 0;
+void ImuDriver::InitGyros(double *bias_x, double *bias_y, double *bias_z) {
+  wraps_ = 0;
 
   uint8_t cmd[5];
   uint8_t rep[19];
@@ -230,7 +230,7 @@ void ImuDriver::initGyros(double *bias_x, double *bias_y, double *bias_z) {
   cmd[2] = 0x29;
   *(unsigned short *)(&cmd[3]) = details::bswap_16(10000);
 
-  transact(cmd, sizeof(cmd), rep, sizeof(rep), 30000);
+  Transact(cmd, sizeof(cmd), rep, sizeof(rep), 30000);
 
   if (bias_x) *bias_x = details::extract_float(rep + 1);
 
@@ -241,7 +241,7 @@ void ImuDriver::initGyros(double *bias_x, double *bias_y, double *bias_z) {
 
 //------------------------------------------------------------------------------
 //
-bool ImuDriver::setContinuous(cmd command) {
+bool ImuDriver::SetContinuous(cmd command) {
   uint8_t cmd[4];
   uint8_t rep[8];
 
@@ -250,20 +250,20 @@ bool ImuDriver::setContinuous(cmd command) {
   cmd[2] = 0x29;  // Confirms user intent
   cmd[3] = command;
 
-  transact(cmd, sizeof(cmd), rep, sizeof(rep), 1000);
+  Transact(cmd, sizeof(cmd), rep, sizeof(rep), 1000);
 
   // Verify that continuous mode is set on correct command:
   if (rep[1] != command) {
     return false;
   }
 
-  continuous = true;
+  continuous_ = true;
   return true;
 }
 
 //------------------------------------------------------------------------------
 //
-void ImuDriver::stopContinuous() {
+void ImuDriver::StopContinuous() {
   uint8_t cmd[3];
 
   cmd[0] = CMD_STOP_CONTINUOUS;
@@ -272,23 +272,23 @@ void ImuDriver::stopContinuous() {
 
   cmd[2] = 0xb4;  // gx3 - confirms user intent
 
-  send(cmd, sizeof(cmd));
+  Send(cmd, sizeof(cmd));
 
-  send(cmd, is_gx3 ? 3 : 1);
+  Send(cmd, is_gx3_ ? 3 : 1);
 
   usleep(1000000);
 
-  if (tcflush(fd, TCIOFLUSH) != 0) {
+  if (tcflush(file_descriptor_, TCIOFLUSH) != 0) {
     ATLAS_THROW(std::runtime_error, "Tcflush failed");
   }
 
-  continuous = false;
+  continuous_ = false;
 }
 
 //------------------------------------------------------------------------------
 //
-void ImuDriver::receiveAccelAngrateMag(uint64_t *time, double accel[3],
-                                       double angrate[3], double mag[3]) {
+void ImuDriver::ReceiveAccelAngrateMag(uint64_t *time, double *accel,
+                                       double *angrate, double *mag) {
   int i, k;
   uint8_t rep[43];
 
@@ -296,7 +296,7 @@ void ImuDriver::receiveAccelAngrateMag(uint64_t *time, double accel[3],
   uint64_t imu_time;
 
   // ROS_DEBUG("About to do receive.");
-  receive(CMD_ACCEL_ANGRATE_MAG, rep, sizeof(rep), 1000, &sys_time);
+  Receive(CMD_ACCEL_ANGRATE_MAG, rep, sizeof(rep), 1000, &sys_time);
   // ROS_DEBUG("Receive finished.");
 
   // Read the acceleration:
@@ -320,15 +320,15 @@ void ImuDriver::receiveAccelAngrateMag(uint64_t *time, double accel[3],
     k += 4;
   }
 
-  imu_time = extractTime(rep + 37);
-  *time = filterTime(imu_time, sys_time);
+  imu_time = ExtractTime(rep + 37);
+  *time = FilterTime(imu_time, sys_time);
 }
 
 //------------------------------------------------------------------------------
 //
-void ImuDriver::receiveAccelAngrateOrientation(uint64_t *time, double accel[3],
-                                               double angrate[3],
-                                               double orientation[9]) {
+void ImuDriver::ReceiveAccelAngrateOrientation(uint64_t *time, double *accel,
+                                               double *angrate,
+                                               double *orientation) {
   int i, k;
   uint8_t rep[67];
 
@@ -336,7 +336,7 @@ void ImuDriver::receiveAccelAngrateOrientation(uint64_t *time, double accel[3],
   uint64_t imu_time;
 
   // ROS_DEBUG("About to do receive.");
-  receive(CMD_ACCEL_ANGRATE_ORIENT, rep, sizeof(rep), 1000, &sys_time);
+  Receive(CMD_ACCEL_ANGRATE_ORIENT, rep, sizeof(rep), 1000, &sys_time);
   // ROS_DEBUG("Finished receive.");
 
   // Read the acceleration:
@@ -360,21 +360,21 @@ void ImuDriver::receiveAccelAngrateOrientation(uint64_t *time, double accel[3],
     k += 4;
   }
 
-  imu_time = extractTime(rep + 61);
-  *time = filterTime(imu_time, sys_time);
+  imu_time = ExtractTime(rep + 61);
+  *time = FilterTime(imu_time, sys_time);
 }
 
 //------------------------------------------------------------------------------
 //
-void ImuDriver::receiveAccelAngrate(uint64_t *time, double accel[3],
-                                    double angrate[3]) {
+void ImuDriver::ReceiveAccelAngrate(uint64_t *time, double *accel,
+                                    double *angrate) {
   int i, k;
   uint8_t rep[31];
 
   uint64_t sys_time;
   uint64_t imu_time;
 
-  receive(CMD_ACCEL_ANGRATE, rep, sizeof(rep), 1000, &sys_time);
+  Receive(CMD_ACCEL_ANGRATE, rep, sizeof(rep), 1000, &sys_time);
 
   // Read the acceleration:
   k = 1;
@@ -390,21 +390,21 @@ void ImuDriver::receiveAccelAngrate(uint64_t *time, double accel[3],
     k += 4;
   }
 
-  imu_time = extractTime(rep + 25);
-  *time = filterTime(imu_time, sys_time);
+  imu_time = ExtractTime(rep + 25);
+  *time = FilterTime(imu_time, sys_time);
 }
 
 //------------------------------------------------------------------------------
 //
-void ImuDriver::receiveDelvelDelang(uint64_t *time, double delvel[3],
-                                    double delang[3]) {
+void ImuDriver::ReceiveDelvelDelang(uint64_t *time, double *delvel,
+                                    double *delang) {
   int i, k;
   uint8_t rep[31];
 
   uint64_t sys_time;
   uint64_t imu_time;
 
-  receive(CMD_DELVEL_DELANG, rep, sizeof(rep), 1000, &sys_time);
+  Receive(CMD_DELVEL_DELANG, rep, sizeof(rep), 1000, &sys_time);
 
   // Read the delta angles:
   k = 1;
@@ -420,39 +420,39 @@ void ImuDriver::receiveDelvelDelang(uint64_t *time, double delvel[3],
     k += 4;
   }
 
-  imu_time = extractTime(rep + 25);
-  *time = filterTime(imu_time, sys_time);
+  imu_time = ExtractTime(rep + 25);
+  *time = FilterTime(imu_time, sys_time);
 }
 
 //------------------------------------------------------------------------------
 //
-void ImuDriver::receiveEuler(uint64_t *time, double *roll, double *pitch,
+void ImuDriver::ReceiveEuler(uint64_t *time, double *roll, double *pitch,
                              double *yaw) {
   uint8_t rep[19];
 
   uint64_t sys_time;
   uint64_t imu_time;
 
-  receive(CMD_EULER, rep, sizeof(rep), 1000, &sys_time);
+  Receive(CMD_EULER, rep, sizeof(rep), 1000, &sys_time);
 
   *roll = details::extract_float(rep + 1);
   *pitch = details::extract_float(rep + 5);
   *yaw = details::extract_float(rep + 9);
 
-  imu_time = extractTime(rep + 13);
-  *time = filterTime(imu_time, sys_time);
+  imu_time = ExtractTime(rep + 13);
+  *time = FilterTime(imu_time, sys_time);
 }
 
 //------------------------------------------------------------------------------
 //
-bool ImuDriver::getDeviceIdentifierString(id_string type, char id[17]) {
+bool ImuDriver::GetDeviceIdentifierString(id_string type, char *id) {
   uint8_t cmd[2];
   uint8_t rep[20];
 
   cmd[0] = CMD_DEV_ID_STR;
   cmd[1] = type;
 
-  transact(cmd, sizeof(cmd), rep, sizeof(rep), 1000);
+  Transact(cmd, sizeof(cmd), rep, sizeof(rep), 1000);
 
   if (cmd[0] != CMD_DEV_ID_STR || cmd[1] != type) return false;
 
@@ -460,7 +460,7 @@ bool ImuDriver::getDeviceIdentifierString(id_string type, char id[17]) {
   memcpy(id, rep + 2, 16);
 
   if (type == ID_DEVICE_NAME) {
-    is_gx3 = (strstr(id, "GX3") != NULL);
+    is_gx3_ = (strstr(id, "GX3") != NULL);
   }
 
   return true;
@@ -468,18 +468,18 @@ bool ImuDriver::getDeviceIdentifierString(id_string type, char id[17]) {
 
 //------------------------------------------------------------------------------
 //
-void ImuDriver::receiveAccelAngrateMagOrientation(uint64_t *time,
-                                                  double accel[3],
-                                                  double angrate[3],
-                                                  double mag[3],
-                                                  double orientation[9]) {
+void ImuDriver::ReceiveAccelAngrateMagOrientation(uint64_t *time,
+                                                  double *accel,
+                                                  double *angrate,
+                                                  double *mag,
+                                                  double *orientation) {
   uint8_t rep[CMD_ACCEL_ANGRATE_MAG_ORIENT_REP_LEN];
 
   int k, i;
   uint64_t sys_time;
   uint64_t imu_time;
 
-  receive(CMD_ACCEL_ANGRATE_MAG_ORIENT, rep, sizeof(rep), 1000, &sys_time);
+  Receive(CMD_ACCEL_ANGRATE_MAG_ORIENT, rep, sizeof(rep), 1000, &sys_time);
 
   // Read the acceleration:
   k = 1;
@@ -508,22 +508,22 @@ void ImuDriver::receiveAccelAngrateMagOrientation(uint64_t *time,
     orientation[i] = details::extract_float(rep + k);
     k += 4;
   }
-  imu_time = extractTime(rep + 73);
+  imu_time = ExtractTime(rep + 73);
 
-  *time = filterTime(imu_time, sys_time);
+  *time = FilterTime(imu_time, sys_time);
 }
 
 //------------------------------------------------------------------------------
 //
-void ImuDriver::receiveRawAccelAngrate(uint64_t *time, double accel[3],
-                                       double angrate[3]) {
+void ImuDriver::ReceiveRawAccelAngrate(uint64_t *time, double *accel,
+                                       double *angrate) {
   int i, k;
   uint8_t rep[CMD_RAW_ACCEL_ANGRATE_LEN];
 
   uint64_t sys_time;
   uint64_t imu_time;
 
-  receive(ImuDriver::CMD_RAW, rep, sizeof(rep), 1000, &sys_time);
+  Receive(ImuDriver::CMD_RAW, rep, sizeof(rep), 1000, &sys_time);
 
   // Read the accelerator AD register values 0 - 65535 given as float
   k = 1;
@@ -539,25 +539,25 @@ void ImuDriver::receiveRawAccelAngrate(uint64_t *time, double accel[3],
     k += 4;
   }
 
-  imu_time = extractTime(rep + 25);
-  *time = filterTime(imu_time, sys_time);
+  imu_time = ExtractTime(rep + 25);
+  *time = FilterTime(imu_time, sys_time);
 }
 
 //------------------------------------------------------------------------------
 //
-uint64_t ImuDriver::extractTime(uint8_t *addr) {
+uint64_t ImuDriver::ExtractTime(uint8_t *addr) {
   uint32_t ticks = details::bswap_32(*(uint32_t *)(addr));
 
-  if (ticks < last_ticks) {
-    wraps += 1;
+  if (ticks < last_ticks_) {
+    wraps_ += 1;
   }
 
-  last_ticks = ticks;
+  last_ticks_ = ticks;
 
-  uint64_t all_ticks = ((uint64_t)wraps << 32) - offset_ticks + ticks;
+  uint64_t all_ticks = ((uint64_t) wraps_ << 32) - offset_ticks_ + ticks;
 
-  return start_time +
-         (is_gx3
+  return start_time_ +
+         (is_gx3_
               ? (uint64_t)(all_ticks * (1000000000.0 / TICKS_PER_SEC_GX3))
               : (uint64_t)(all_ticks * (1000000000.0 /
                                         TICKS_PER_SEC_GX2)));  // syntax a bit
@@ -565,20 +565,20 @@ uint64_t ImuDriver::extractTime(uint8_t *addr) {
 
 //------------------------------------------------------------------------------
 //
-int ImuDriver::transact(void *cmd, int cmd_len, void *rep, int rep_len,
+int ImuDriver::Transact(void *cmd, int cmd_len, void *rep, int rep_len,
                         int timeout) {
-  send(cmd, cmd_len);
+  Send(cmd, cmd_len);
 
-  return receive(*(uint8_t *)cmd, rep, rep_len, timeout);
+  return Receive(*(uint8_t *) cmd, rep, rep_len, timeout);
 }
 
 //------------------------------------------------------------------------------
 //
-int ImuDriver::send(void *cmd, int cmd_len) {
+int ImuDriver::Send(void *cmd, int cmd_len) {
   int bytes;
 
   // Write the data to the port
-  bytes = write(fd, cmd, cmd_len);
+  bytes = write(file_descriptor_, cmd, cmd_len);
   if (bytes < 0) {
     ATLAS_THROW(std::runtime_error, atlas::Format("error writing to IMU [{0}]", strerror(errno)));
   }
@@ -589,7 +589,7 @@ int ImuDriver::send(void *cmd, int cmd_len) {
 
   // Make sure the queue is drained
   // Synchronous IO doesnt always work
-  if (tcdrain(fd) != 0) {
+  if (tcdrain(file_descriptor_) != 0) {
     ATLAS_THROW(std::runtime_error, "tcdrain failed");
   }
 
@@ -629,21 +629,21 @@ static int read_with_timeout(int fd, void *buff, size_t count, int timeout) {
 
 //------------------------------------------------------------------------------
 //
-int ImuDriver::receive(uint8_t command, void *rep, int rep_len, int timeout,
+int ImuDriver::Receive(uint8_t command, void *rep, int rep_len, int timeout,
                        uint64_t *sys_time) {
   int nbytes, bytes, skippedbytes;
 
   skippedbytes = 0;
 
   struct pollfd ufd[1];
-  ufd[0].fd = fd;
+  ufd[0].fd = file_descriptor_;
   ufd[0].events = POLLIN;
 
   // Skip everything until we find our "header"
   *(uint8_t *)(rep) = 0;
 
   while (*(uint8_t *)(rep) != command && skippedbytes < MAX_BYTES_SKIPPED) {
-    read_with_timeout(fd, rep, 1, timeout);
+    read_with_timeout(file_descriptor_, rep, 1, timeout);
 
     skippedbytes++;
   }
@@ -656,7 +656,7 @@ int ImuDriver::receive(uint8_t command, void *rep, int rep_len, int timeout,
   // Read the rest of the message:
   while (bytes < rep_len) {
     nbytes =
-        read_with_timeout(fd, (uint8_t *)rep + bytes, rep_len - bytes, timeout);
+        read_with_timeout(file_descriptor_, (uint8_t *)rep + bytes, rep_len - bytes, timeout);
 
     if (nbytes < 0) ATLAS_THROW(std::runtime_error, atlas::Format("read failed  [{0}]", strerror(errno)));
 
@@ -681,32 +681,32 @@ int ImuDriver::receive(uint8_t command, void *rep, int rep_len, int timeout,
 
 //------------------------------------------------------------------------------
 //
-uint64_t ImuDriver::filterTime(uint64_t imu_time, uint64_t sys_time) {
+uint64_t ImuDriver::FilterTime(uint64_t imu_time, uint64_t sys_time) {
   // first calculate the sum of KF_NUM_SUM measurements
-  if (counter < KF_NUM_SUM) {
-    counter++;
-    sum_meas += (toDouble(imu_time) - toDouble(sys_time));
+  if (counter_ < KF_NUM_SUM) {
+    counter_++;
+    sum_meas_ += (ToDouble(imu_time) - ToDouble(sys_time));
   }
   // update kalman filter with fixed innovation
   else {
     // system update
-    offset += d_offset;
+    offset_ += d_offset_;
 
     // measurement update
-    double meas_diff = (sum_meas / KF_NUM_SUM) - offset;
-    offset += KF_K_1 * meas_diff;
-    d_offset += KF_K_2 * meas_diff;
+    double meas_diff = (sum_meas_ / KF_NUM_SUM) - offset_;
+    offset_ += KF_K_1 * meas_diff;
+    d_offset_ += KF_K_2 * meas_diff;
 
     // reset counter and average
-    counter = 0;
-    sum_meas = 0;
+    counter_ = 0;
+    sum_meas_ = 0;
   }
-  return imu_time - toUint64_t(offset) + toUint64_t(fixed_offset);
+  return imu_time - ToUint64(offset_) + ToUint64(fixed_offset_);
 }
 
 //------------------------------------------------------------------------------
 //
-double ImuDriver::toDouble(uint64_t time) {
+double ImuDriver::ToDouble(uint64_t time) {
   double res = trunc(time / 1e9);
   res += (((double)time) / 1e9) - res;
   return res;
@@ -714,30 +714,30 @@ double ImuDriver::toDouble(uint64_t time) {
 
 //------------------------------------------------------------------------------
 //
-uint64_t ImuDriver::toUint64_t(double time) { return (uint64_t)(time * 1e9); }
+uint64_t ImuDriver::ToUint64(double time) { return (uint64_t)(time * 1e9); }
 
 ///////////////////////////////////////////////////////////////////////////////
 // This command will do a soft reset
-void ImuDriver::reset() {
+void ImuDriver::Reset() {
   uint8_t cmd[2];
 
   cmd[0] = CMD_RESET_IMU;
   cmd[1] = 0x9E;  // Confirms user intent
   cmd[2] = 0x3A;  // Confirms user intent
 
-  send(cmd, sizeof(cmd));
+  Send(cmd, sizeof(cmd));
 }
 
 ///////////////////////////////////////////////////////////////////////////////
 // This command will return the version of the firmware of the imu
-std::string ImuDriver::getFirmware() {
+std::string ImuDriver::GetFirmware() {
   uint8_t cmd[1];
   uint8_t rep[7];
   uint32_t version;
   std::string firm_version;
 
   cmd[0] = CMD_FIRMWARE_VERSION;
-  transact(cmd, sizeof(cmd), rep, sizeof(rep), 100);
+  Transact(cmd, sizeof(cmd), rep, sizeof(rep), 100);
 
   uint16_t checksum = 0;
   for (int i = 0; i < sizeof(rep) - 2; i++) {
