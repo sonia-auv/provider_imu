@@ -716,8 +716,8 @@ double ImuDriver::ToDouble(uint64_t time) {
 //
 uint64_t ImuDriver::ToUint64(double time) { return (uint64_t)(time * 1e9); }
 
-///////////////////////////////////////////////////////////////////////////////
-// This command will do a soft reset
+//------------------------------------------------------------------------------
+//
 void ImuDriver::Reset() {
   uint8_t cmd[2];
 
@@ -728,8 +728,8 @@ void ImuDriver::Reset() {
   Send(cmd, sizeof(cmd));
 }
 
-///////////////////////////////////////////////////////////////////////////////
-// This command will return the version of the firmware of the imu
+//------------------------------------------------------------------------------
+//
 std::string ImuDriver::GetFirmware() {
   uint8_t cmd[1];
   uint8_t rep[7];
