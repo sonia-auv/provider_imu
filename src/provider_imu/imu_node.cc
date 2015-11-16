@@ -36,7 +36,8 @@
  */
 
 #include "provider_imu/imu_node.h"
-#include <tf/transform_datatypes.h>
+
+namespace provider_imu {
 
 //==============================================================================
 // C / D T O R   S E C T I O N
@@ -63,15 +64,15 @@ ImuNode::ImuNode(ros::NodeHandle h)
 
   imu_data_pub_ = imu_node_handle.advertise<sensor_msgs::Imu>("data", 100);
   add_offset_serv_ = private_node_handle_.advertiseService(
-      "add_offset", &ImuNode::addOffset, this);
-  calibrate_serv_ =
-      imu_node_handle.advertiseService("calibrate", &ImuNode::calibrate, this);
+      "add_offset", &ImuNode::AddOffsetCallback, this);
+  calibrate_serv_ = imu_node_handle.advertiseService(
+      "calibrate", &ImuNode::CalibrateCallback, this);
   is_calibrated_pub_ =
       imu_node_handle.advertise<std_msgs::Bool>("is_calibrated", 1, true);
 
-  publish_is_calibrated();
+  PublishIsCalibrated();
 
-  cmd = microstrain_3dmgx2_imu::IMU::CMD_ACCEL_ANGRATE_ORIENT;
+  cmd = provider_imu::ImuDriver::CMD_ACCEL_ANGRATE_ORIENT;
 
   running = false;
 
@@ -106,7 +107,7 @@ ImuNode::ImuNode(ros::NodeHandle h)
   reading.orientation_covariance[4] = orientation_covariance;
   reading.orientation_covariance[8] = orientation_covariance;
 
-  self_test_.add("Close Test", this, &ImuNode::pretest);
+  self_test_.add("Close Test", this, &ImuNode::PreTest);
   self_test_.add("Interruption Test", this, &ImuNode::InterruptionTest);
   self_test_.add("Connect Test", this, &ImuNode::ConnectTest);
   self_test_.add("Read ID Test", this, &ImuNode::ReadIDTest);
@@ -117,59 +118,59 @@ ImuNode::ImuNode(ros::NodeHandle h)
   self_test_.add("Resume Test", this, &ImuNode::ResumeTest);
 
   diagnostic_.add(freq_diag_);
-  diagnostic_.add("Calibration Status", this, &ImuNode::calibrationStatus);
-  diagnostic_.add("IMU Status", this, &ImuNode::deviceStatus);
+  diagnostic_.add("Calibration Status", this, &ImuNode::GetCalibrationStatus);
+  diagnostic_.add("IMU Status", this, &ImuNode::GetDeviceStatus);
 }
 
-ImuNode::~ImuNode() { stop(); }
+ImuNode::~ImuNode() { Stop(); }
 
 //==============================================================================
 // M E T H O D S   S E C T I O N
 
 //------------------------------------------------------------------------------
 //
-void ImuNode::setErrorStatusf(const char* format, ...) {
+void ImuNode::SetErrorStatusF(const char *format, ...) {
   va_list va;
   char buff[1000];
   va_start(va, format);
   if (vsnprintf(buff, 1000, format, va) >= 1000)
     ROS_DEBUG("Really long string in setErrorStatus, it was truncated.");
   std::string value = std::string(buff);
-  setErrorStatus(buff);
+  SetErrorStatus(buff);
 }
 
 //------------------------------------------------------------------------------
 //
-void ImuNode::setErrorStatus(const std::string msg) {
+void ImuNode::SetErrorStatus(const std::string msg) {
   if (error_status_ != msg) {
     error_status_ = msg;
     ROS_ERROR(
         "%s You may find further details at "
-        "http://www.ros.org/wiki/microstrain_3dmgx2_imu/Troubleshooting",
+            "http://www.ros.org/wiki/microstrain_3dmgx2_imu/Troubleshooting",
         msg.c_str());
   } else {
     ROS_DEBUG(
         "%s You may find further details at "
-        "http://www.ros.org/wiki/microstrain_3dmgx2_imu/Troubleshooting",
+            "http://www.ros.org/wiki/microstrain_3dmgx2_imu/Troubleshooting",
         msg.c_str());
   }
 }
 
 //------------------------------------------------------------------------------
 //
-void ImuNode::clearErrorStatus() { error_status_.clear(); }
+void ImuNode::ClearErrorStatus() { error_status_.clear(); }
 
 //------------------------------------------------------------------------------
 //
-int ImuNode::start() {
-  stop();
+int ImuNode::Start() {
+  Stop();
 
   try {
     try {
       imu.openPort(port.c_str());
-    } catch (microstrain_3dmgx2_imu::Exception& e) {
+    } catch (provider_imu::Exception &e) {
       error_count_++;
-      setErrorStatus(e.what());
+      SetErrorStatus(e.what());
       diagnostic_.broadcast(2, e.what());
       return -1;
     }
@@ -181,14 +182,14 @@ int ImuNode::start() {
     imu.initTime(offset_);
 
     if (autocalibrate_ || calibrate_requested_) {
-      doCalibrate();
+      CheckCalibration();
       calibrate_requested_ = false;
       autocalibrate_ =
           false;  // No need to do this each time we reopen the device.
     } else {
       ROS_INFO(
           "Not calibrating the IMU sensor. Use the calibrate service to "
-          "calibrate it before use.");
+              "calibrate it before use.");
     }
 
     ROS_INFO("IMU sensor initialized.");
@@ -199,15 +200,15 @@ int ImuNode::start() {
 
     running = true;
 
-  } catch (microstrain_3dmgx2_imu::Exception& e) {
+  } catch (provider_imu::Exception &e) {
     error_count_++;
     usleep(100000);                // Give isShuttingDown a chance to go true.
     if (!ros::isShuttingDown()) {  // Don't warn if we are shutting down.
-      setErrorStatusf(
+      SetErrorStatusF(
           "Exception thrown while starting IMU. This sometimes happens if "
-          "you are not connected to an IMU or if another process is trying "
-          "to access the IMU port. You may try 'lsof|grep %s' to see if "
-          "other processes have the port open. %s",
+              "you are not connected to an IMU or if another process is trying "
+              "to access the IMU port. You may try 'lsof|grep %s' to see if "
+              "other processes have the port open. %s",
           port.c_str(), e.what());
       diagnostic_.broadcast(2, "Error opening IMU.");
     }
@@ -224,38 +225,39 @@ std::string ImuNode::getID(bool output_info) {
   char dev_model_num[17];
   char dev_serial_num[17];
   char dev_opt[17];
-  imu.getDeviceIdentifierString(microstrain_3dmgx2_imu::IMU::ID_DEVICE_NAME,
+  imu.getDeviceIdentifierString(provider_imu::ImuDriver::ID_DEVICE_NAME,
                                 dev_name);
-  imu.getDeviceIdentifierString(microstrain_3dmgx2_imu::IMU::ID_MODEL_NUMBER,
+  imu.getDeviceIdentifierString(provider_imu::ImuDriver::ID_MODEL_NUMBER,
                                 dev_model_num);
-  imu.getDeviceIdentifierString(microstrain_3dmgx2_imu::IMU::ID_SERIAL_NUMBER,
+  imu.getDeviceIdentifierString(provider_imu::ImuDriver::ID_SERIAL_NUMBER,
                                 dev_serial_num);
-  imu.getDeviceIdentifierString(microstrain_3dmgx2_imu::IMU::ID_DEVICE_OPTIONS,
+  imu.getDeviceIdentifierString(provider_imu::ImuDriver::ID_DEVICE_OPTIONS,
                                 dev_opt);
 
   if (output_info)
     ROS_INFO("Connected to IMU [%s] model [%s] s/n [%s] options [%s]", dev_name,
              dev_model_num, dev_serial_num, dev_opt);
 
-  char* dev_name_ptr = dev_name;
-  char* dev_model_num_ptr = dev_model_num;
-  char* dev_serial_num_ptr = dev_serial_num;
+  char *dev_name_ptr = dev_name;
+  char *dev_model_num_ptr = dev_model_num;
+  char *dev_serial_num_ptr = dev_serial_num;
 
   while (*dev_name_ptr == ' ') dev_name_ptr++;
   while (*dev_model_num_ptr == ' ') dev_model_num_ptr++;
   while (*dev_serial_num_ptr == ' ') dev_serial_num_ptr++;
 
   return (boost::format("%s_%s-%s") % dev_name_ptr % dev_model_num_ptr %
-          dev_serial_num_ptr).str();
+      dev_serial_num_ptr)
+      .str();
 }
 
 //------------------------------------------------------------------------------
 //
-int ImuNode::stop() {
+int ImuNode::Stop() {
   if (running) {
     try {
       imu.closePort();
-    } catch (microstrain_3dmgx2_imu::Exception& e) {
+    } catch (provider_imu::Exception &e) {
       error_count_++;
       ROS_INFO("Exception thrown while stopping IMU. %s", e.what());
     }
@@ -267,7 +269,7 @@ int ImuNode::stop() {
 
 //------------------------------------------------------------------------------
 //
-int ImuNode::publish_datum() {
+int ImuNode::PublishData() {
   try {
     static double prevtime = 0;
     double starttime = ros::Time::now().toSec();
@@ -277,7 +279,7 @@ int ImuNode::publish_datum() {
       was_slow_ = "Full IMU loop was slow.";
       slow_count_++;
     }
-    getData(reading);
+    GetData(reading);
     double endtime = ros::Time::now().toSec();
     if (endtime - starttime > 0.05) {
       ROS_WARN("Gathering data took %f ms. Nominal is 10ms.",
@@ -296,38 +298,37 @@ int ImuNode::publish_datum() {
       slow_count_++;
     }
 
-    double roll, pitch, yaw;
     tf::Quaternion q;
-    q = getQuat(reading);
+    q = GetQuaternion(reading);
     tf::Matrix3x3 m(q);
-    m.getEulerYPR(yaw, pitch, roll,0);
-    double a,b,c,d;
-    a = q.getW();
-    b = q.getX();
-    c = q.getY();
-    d = q.getZ();
-    // = atan((2*(a*b+c*d))/(pow(a,2)-pow(b,2)-pow(c,2)+pow(d,2)));
-    //yaw = atan((2*(a*d+b*c))/(pow(a,2)+pow(b,2)-pow(c,2)-pow(d,2)));
-    //pitch = -asin(2*(b*d-a*c));
-    //std::cout << "Functtion \n Roll: " << (roll/(2*M_PI))*360+180 << ", "
-     //   "Pitch: " << (pitch/(2*M_PI))*360+180 << ", Yaw: " << (yaw/(2*M_PI))
-        *360+180 << std::endl;
 
+    double roll, pitch, yaw;
+    m.getEulerYPR(yaw, pitch, roll, 0);
 
+    double a = q.getW();
+    double b = q.getX();
+    double c = q.getY();
+    double d = q.getZ();
 
     freq_diag_.tick();
-    clearErrorStatus();  // If we got here, then the IMU really is working.
-                         // Next time an error occurs, we want to print it.
-  } catch (microstrain_3dmgx2_imu::Exception& e) {
+
+    // If we got here, then the IMU really is working.
+    // Next time an error occurs, we want to print it.
+    ClearErrorStatus();
+  } catch (provider_imu::Exception &e) {
     error_count_++;
-    usleep(100000);              // Give isShuttingDown a chance to go true.
-    if (!ros::isShuttingDown())  // Don't warn if we are shutting down.
+
+    // Give isShuttingDown a chance to go true.
+    usleep(100000);
+    if (!ros::isShuttingDown()) {
+      // Don't warn if we are shutting down.
       ROS_WARN(
           "Exception thrown while trying to get the IMU reading. This "
-          "sometimes happens due to a communication glitch, or if another "
-          "process is trying to access the IMU port. You may try 'lsof|grep "
-          "%s' to see if other processes have the port open. %s",
+              "sometimes happens due to a communication glitch, or if another "
+              "process is trying to access the IMU port. You may try 'lsof|grep "
+              "%s' to see if other processes have the port open. %s",
           port.c_str(), e.what());
+    }
     return -1;
   }
 
@@ -336,13 +337,13 @@ int ImuNode::publish_datum() {
 
 //------------------------------------------------------------------------------
 //
-bool ImuNode::spin() {
-  while (!ros::isShuttingDown())  // Using ros::isShuttingDown to avoid
-                                  // restarting the node during a shutdown.
-  {
-    if (start() == 0) {
+bool ImuNode::Spin() {
+  // Using ros::isShuttingDown to avoid
+  // restarting the node during a shutdown.
+  while (!ros::isShuttingDown()) {
+    if (Start() == 0) {
       while (node_handle_.ok()) {
-        if (publish_datum() < 0) break;
+        if (PublishData() < 0) break;
         self_test_.checkTest();
         diagnostic_.update();
         ros::spinOnce();
@@ -356,14 +357,14 @@ bool ImuNode::spin() {
     }
   }
 
-  stop();
+  Stop();
 
   return true;
 }
 
 //------------------------------------------------------------------------------
 //
-void ImuNode::publish_is_calibrated() {
+void ImuNode::PublishIsCalibrated() {
   std_msgs::Bool msg;
   msg.data = calibrated_;
   is_calibrated_pub_.publish(msg);
@@ -371,12 +372,12 @@ void ImuNode::publish_is_calibrated() {
 
 //------------------------------------------------------------------------------
 //
-void ImuNode::pretest(diagnostic_updater::DiagnosticStatusWrapper& status) {
+void ImuNode::PreTest(diagnostic_updater::DiagnosticStatusWrapper &status) {
   try {
     imu.closePort();
 
     status.summary(0, "Device closed successfully.");
-  } catch (microstrain_3dmgx2_imu::Exception& e) {
+  } catch (provider_imu::Exception &e) {
     status.summary(1, "Failed to close device.");
   }
 }
@@ -384,18 +385,18 @@ void ImuNode::pretest(diagnostic_updater::DiagnosticStatusWrapper& status) {
 //------------------------------------------------------------------------------
 //
 void ImuNode::InterruptionTest(
-    diagnostic_updater::DiagnosticStatusWrapper& status) {
+    diagnostic_updater::DiagnosticStatusWrapper &status) {
   if (imu_data_pub_.getNumSubscribers() == 0)
     status.summary(0, "No operation interrupted.");
   else
     status.summary(1,
                    "There were active subscribers.  Running of self test "
-                   "interrupted operations.");
+                       "interrupted operations.");
 }
 
 //------------------------------------------------------------------------------
 //
-void ImuNode::ConnectTest(diagnostic_updater::DiagnosticStatusWrapper& status) {
+void ImuNode::ConnectTest(diagnostic_updater::DiagnosticStatusWrapper &status) {
   imu.openPort(port.c_str());
 
   status.summary(0, "Connected successfully.");
@@ -403,7 +404,7 @@ void ImuNode::ConnectTest(diagnostic_updater::DiagnosticStatusWrapper& status) {
 
 //------------------------------------------------------------------------------
 //
-void ImuNode::ReadIDTest(diagnostic_updater::DiagnosticStatusWrapper& status) {
+void ImuNode::ReadIDTest(diagnostic_updater::DiagnosticStatusWrapper &status) {
   self_test_.setID(getID());
 
   status.summary(0, "Read Successfully");
@@ -412,7 +413,7 @@ void ImuNode::ReadIDTest(diagnostic_updater::DiagnosticStatusWrapper& status) {
 //------------------------------------------------------------------------------
 //
 void ImuNode::GyroBiasTest(
-    diagnostic_updater::DiagnosticStatusWrapper& status) {
+    diagnostic_updater::DiagnosticStatusWrapper &status) {
   imu.initGyros(&bias_x_, &bias_y_, &bias_z_);
 
   status.summary(0, "Successfully calculated gyro biases.");
@@ -424,36 +425,7 @@ void ImuNode::GyroBiasTest(
 
 //------------------------------------------------------------------------------
 //
-void ImuNode::getData(sensor_msgs::Imu& data) {
-  uint64_t time;
-  double accel[3];
-  double angrate[3];
-  double orientation[9];
-
-  imu.receiveAccelAngrateOrientation(&time, accel, angrate, orientation);
-  data.linear_acceleration.x = accel[0];
-  data.linear_acceleration.y = accel[1];
-  data.linear_acceleration.z = accel[2];
-
-  data.angular_velocity.x = angrate[0];
-  data.angular_velocity.y = angrate[1];
-  data.angular_velocity.z = angrate[2];
-
-  tf::Quaternion quat;
-  (tf::Matrix3x3(-1, 0, 0, 0, 1, 0, 0, 0, -1) *
-   tf::Matrix3x3(orientation[0], orientation[3], orientation[6], orientation[1],
-                 orientation[4], orientation[7], orientation[2], orientation[5],
-                 orientation[8])).getRotation(quat);
-
-  tf::quaternionTFToMsg(quat, data.orientation);
-
-  data.header.stamp = ros::Time::now().fromNSec(time);
-}
-
-//------------------------------------------------------------------------------
-//
-
-tf::Quaternion ImuNode::getQuat(sensor_msgs::Imu& data){
+void ImuNode::GetData(sensor_msgs::Imu &data) {
   uint64_t time;
   double accel[3];
   double angrate[3];
@@ -472,8 +444,38 @@ tf::Quaternion ImuNode::getQuat(sensor_msgs::Imu& data){
   (tf::Matrix3x3(-1, 0, 0, 0, 1, 0, 0, 0, -1) *
       tf::Matrix3x3(orientation[0], orientation[3], orientation[6], orientation[1],
                     orientation[4], orientation[7], orientation[2], orientation[5],
-                    orientation[8])).getRotation(quat);
+                    orientation[8]))
+      .getRotation(quat);
 
+  tf::quaternionTFToMsg(quat, data.orientation);
+
+  data.header.stamp = ros::Time::now().fromNSec(time);
+}
+
+//------------------------------------------------------------------------------
+//
+
+tf::Quaternion ImuNode::GetQuaternion(sensor_msgs::Imu &data) {
+  uint64_t time;
+  double accel[3];
+  double angrate[3];
+  double orientation[9];
+
+  imu.receiveAccelAngrateOrientation(&time, accel, angrate, orientation);
+  data.linear_acceleration.x = accel[0];
+  data.linear_acceleration.y = accel[1];
+  data.linear_acceleration.z = accel[2];
+
+  data.angular_velocity.x = angrate[0];
+  data.angular_velocity.y = angrate[1];
+  data.angular_velocity.z = angrate[2];
+
+  tf::Quaternion quat;
+  (tf::Matrix3x3(-1, 0, 0, 0, 1, 0, 0, 0, -1) *
+      tf::Matrix3x3(orientation[0], orientation[3], orientation[6], orientation[1],
+                    orientation[4], orientation[7], orientation[2], orientation[5],
+                    orientation[8]))
+      .getRotation(quat);
 
   return quat;
 }
@@ -482,12 +484,12 @@ tf::Quaternion ImuNode::getQuat(sensor_msgs::Imu& data){
 //
 
 void ImuNode::StreamedDataTest(
-    diagnostic_updater::DiagnosticStatusWrapper& status) {
+    diagnostic_updater::DiagnosticStatusWrapper &status) {
   uint64_t time;
   double accel[3];
   double angrate[3];
 
-  if (!imu.setContinuous(microstrain_3dmgx2_imu::IMU::CMD_ACCEL_ANGRATE)) {
+  if (!imu.setContinuous(provider_imu::ImuDriver::CMD_ACCEL_ANGRATE)) {
     status.summary(2, "Could not start streaming data.");
   } else {
     for (int i = 0; i < 100; i++) {
@@ -502,7 +504,7 @@ void ImuNode::StreamedDataTest(
 
 //------------------------------------------------------------------------------
 //
-void ImuNode::GravityTest(diagnostic_updater::DiagnosticStatusWrapper& status) {
+void ImuNode::GravityTest(diagnostic_updater::DiagnosticStatusWrapper &status) {
   uint64_t time;
   double accel[3];
   double angrate[3];
@@ -513,7 +515,7 @@ void ImuNode::GravityTest(diagnostic_updater::DiagnosticStatusWrapper& status) {
   double grav_y = 0.0;
   double grav_z = 0.0;
 
-  if (!imu.setContinuous(microstrain_3dmgx2_imu::IMU::CMD_ACCEL_ANGRATE)) {
+  if (!imu.setContinuous(provider_imu::ImuDriver::CMD_ACCEL_ANGRATE)) {
     status.summary(2, "Could not start streaming data.");
   } else {
     int num = 200;
@@ -528,11 +530,11 @@ void ImuNode::GravityTest(diagnostic_updater::DiagnosticStatusWrapper& status) {
 
     imu.stopContinuous();
 
-    grav += sqrt(pow(grav_x / (double)(num), 2.0) +
-                 pow(grav_y / (double)(num), 2.0) +
-                 pow(grav_z / (double)(num), 2.0));
+    grav += sqrt(pow(grav_x / (double) (num), 2.0) +
+        pow(grav_y / (double) (num), 2.0) +
+        pow(grav_z / (double) (num), 2.0));
 
-    //      double err = (grav - microstrain_3dmgx2_imu::G);
+    // double err = (grav - microstrain_3dmgx2_imu::G);
     double err = (grav - 9.796);
 
     if (fabs(err) < .05) {
@@ -549,7 +551,7 @@ void ImuNode::GravityTest(diagnostic_updater::DiagnosticStatusWrapper& status) {
 //
 
 void ImuNode::DisconnectTest(
-    diagnostic_updater::DiagnosticStatusWrapper& status) {
+    diagnostic_updater::DiagnosticStatusWrapper &status) {
   imu.closePort();
 
   status.summary(0, "Disconnected successfully.");
@@ -557,7 +559,7 @@ void ImuNode::DisconnectTest(
 
 //------------------------------------------------------------------------------
 //
-void ImuNode::ResumeTest(diagnostic_updater::DiagnosticStatusWrapper& status) {
+void ImuNode::ResumeTest(diagnostic_updater::DiagnosticStatusWrapper &status) {
   if (running) {
     imu.openPort(port.c_str());
     freq_diag_.clear();
@@ -573,15 +575,16 @@ void ImuNode::ResumeTest(diagnostic_updater::DiagnosticStatusWrapper& status) {
 
 //------------------------------------------------------------------------------
 //
-void ImuNode::deviceStatus(
-    diagnostic_updater::DiagnosticStatusWrapper& status) {
-  if (!running)
+void ImuNode::GetDeviceStatus(
+    diagnostic_updater::DiagnosticStatusWrapper &status) {
+  if (!running) {
     status.summary(2, "IMU is stopped");
-  else if (!was_slow_.empty()) {
+  } else if (!was_slow_.empty()) {
     status.summary(1, "Excessive delay");
     was_slow_.clear();
-  } else
+  } else {
     status.summary(0, "IMU is running");
+  }
 
   status.add("Device", port);
   status.add("TF frame", frameid_);
@@ -591,23 +594,22 @@ void ImuNode::deviceStatus(
 
 //------------------------------------------------------------------------------
 //
-void ImuNode::calibrationStatus(
-    diagnostic_updater::DiagnosticStatusWrapper& status) {
+void ImuNode::GetCalibrationStatus(
+    diagnostic_updater::DiagnosticStatusWrapper &status) {
   if (calibrated_) {
     status.summary(0, "Gyro is calibrated");
     status.add("X bias", bias_x_);
     status.add("Y bias", bias_y_);
     status.add("Z bias", bias_z_);
-  } else
+  } else {
     status.summary(2, "Gyro not calibrated");
-  // Note to Kevin. Yes the IMU is running, but it is outputting
-  // garbage, so this is an error.
+  }
 }
 
 //------------------------------------------------------------------------------
 //
-bool ImuNode::addOffset(provider_imu::AddOffset::Request& req,
-                        provider_imu::AddOffset::Response& resp) {
+bool ImuNode::AddOffsetCallback(provider_imu::AddOffset::Request &req,
+                                provider_imu::AddOffset::Response &resp) {
   double offset = req.add_offset;
   offset_ += offset;
 
@@ -628,29 +630,29 @@ bool ImuNode::addOffset(provider_imu::AddOffset::Request& req,
 
 //------------------------------------------------------------------------------
 //
-bool ImuNode::calibrate(std_srvs::Empty::Request& req,
-                        std_srvs::Empty::Response& resp) {
+bool ImuNode::CalibrateCallback(std_srvs::Empty::Request &req,
+                                std_srvs::Empty::Response &resp) {
   bool old_running = running;
 
   try {
     calibrate_requested_ = true;
     if (old_running) {
-      stop();
-      start();  // Start will do the calibration.
+      Stop();
+      Start();  // Start will do the calibration.
     } else {
       imu.openPort(port.c_str());
-      doCalibrate();
+      CheckCalibration();
       imu.closePort();
     }
-  } catch (microstrain_3dmgx2_imu::Exception& e) {
+  } catch (provider_imu::Exception &e) {
     error_count_++;
     calibrated_ = false;
-    publish_is_calibrated();
+    PublishIsCalibrated();
     ROS_ERROR("Exception thrown while calibrating IMU %s", e.what());
-    stop();
+    Stop();
     if (old_running)
-      start();  // Might throw, but we have nothing to lose... Needs
-                // restructuring.
+      Start();  // Might throw, but we have nothing to lose... Needs
+    // restructuring.
     return false;
   }
 
@@ -659,24 +661,24 @@ bool ImuNode::calibrate(std_srvs::Empty::Request& req,
 
 //------------------------------------------------------------------------------
 //
-void ImuNode::doCalibrate() {  // Expects to be called with the IMU stopped.
+void ImuNode::CheckCalibration() {  // Expects to be called with the IMU
+  // stopped.
   ROS_INFO("Calibrating IMU gyros.");
   imu.initGyros(&bias_x_, &bias_y_, &bias_z_);
 
   // check calibration
-  if (!imu.setContinuous(
-          microstrain_3dmgx2_imu::IMU::CMD_ACCEL_ANGRATE_ORIENT)) {
+  if (!imu.setContinuous(provider_imu::ImuDriver::CMD_ACCEL_ANGRATE_ORIENT)) {
     ROS_ERROR("Could not start streaming data to verify calibration");
   } else {
     double x_rate = 0.0;
     double y_rate = 0.0;
     double z_rate = 0.0;
     size_t count = 0;
-    getData(reading);
+    GetData(reading);
     ros::Time start_time = reading.header.stamp;
 
     while (reading.header.stamp - start_time < ros::Duration(2.0)) {
-      getData(reading);
+      GetData(reading);
       x_rate += reading.angular_velocity.x;
       y_rate += reading.angular_velocity.y;
       z_rate += reading.angular_velocity.z;
@@ -694,24 +696,26 @@ void ImuNode::doCalibrate() {  // Expects to be called with the IMU stopped.
     if (average_rate < max_drift_rate_) {
       ROS_INFO(
           "Imu: calibration check succeeded: average angular drift %f "
-          "mdeg/sec < %f mdeg/sec",
+              "mdeg/sec < %f mdeg/sec",
           average_rate * 180 * 1000 / M_PI,
           max_drift_rate_ * 180 * 1000 / M_PI);
       calibrated_ = true;
-      publish_is_calibrated();
+      PublishIsCalibrated();
       ROS_INFO("IMU gyro calibration completed.");
       freq_diag_.clear();
     }
-    // calibration failed
+      // calibration failed
     else {
       calibrated_ = false;
-      publish_is_calibrated();
+      PublishIsCalibrated();
       ROS_ERROR(
           "Imu: calibration check failed: average angular drift = %f "
-          "mdeg/sec > %f mdeg/sec",
+              "mdeg/sec > %f mdeg/sec",
           average_rate * 180 * 1000 / M_PI,
           max_drift_rate_ * 180 * 1000 / M_PI);
     }
     imu.stopContinuous();
   }
 }
+
+} //namespace provider_imu

@@ -27,10 +27,12 @@
 #include <unistd.h>
 #include <netinet/in.h>
 #include <sys/time.h>
-#include "provider_imu/3dmgx2.h"
-#include "poll.h"
 #include <iostream>
 #include <sstream>
+#include "poll.h"
+#include "imu_driver.h"
+
+namespace provider_imu {
 
 //! Macro for throwing an exception with a message
 #define IMU_EXCEPT(except, msg, ...)                                \
@@ -47,9 +49,9 @@
 
 // Some systems (e.g., OS X) require explicit externing of static class
 // members.
-extern constexpr double microstrain_3dmgx2_imu::IMU::G;
-extern constexpr double microstrain_3dmgx2_imu::IMU::KF_K_1;
-extern constexpr double microstrain_3dmgx2_imu::IMU::KF_K_2;
+extern constexpr double ImuDriver::G;
+extern constexpr double ImuDriver::KF_K_1;
+extern constexpr double ImuDriver::KF_K_2;
 
 //! Code to swap bytes since IMU is big endian
 static inline unsigned short bswap_16(unsigned short x) {
@@ -93,18 +95,18 @@ static unsigned long long time_helper() {
 
 //------------------------------------------------------------------------------
 //
-microstrain_3dmgx2_imu::IMU::IMU() : fd(-1), continuous(false), is_gx3(false) {}
+ImuDriver::ImuDriver() : fd(-1), continuous(false), is_gx3(false) {}
 
 //------------------------------------------------------------------------------
 //
-microstrain_3dmgx2_imu::IMU::~IMU() { closePort(); }
+ImuDriver::~ImuDriver() { closePort(); }
 
 //==============================================================================
 // M E T H O D S   S E C T I O N
 
 //------------------------------------------------------------------------------
 //
-void microstrain_3dmgx2_imu::IMU::openPort(const char *port_name) {
+void ImuDriver::openPort(const char *port_name) {
   closePort();  // In case it was previously open, try to close it first.
 
   // Open the port
@@ -125,8 +127,7 @@ void microstrain_3dmgx2_imu::IMU::openPort(const char *port_name) {
         break;
     }
 
-    IMU_EXCEPT(microstrain_3dmgx2_imu::Exception,
-               "Unable to open serial port [%s]. %s. %s", port_name,
+    IMU_EXCEPT(Exception, "Unable to open serial port [%s]. %s. %s", port_name,
                strerror(errno), extra_msg);
   }
 
@@ -139,7 +140,7 @@ void microstrain_3dmgx2_imu::IMU::openPort(const char *port_name) {
   fl.l_pid = getpid();
 
   if (fcntl(fd, F_SETLK, &fl) != 0)
-    IMU_EXCEPT(microstrain_3dmgx2_imu::Exception,
+    IMU_EXCEPT(Exception,
                "Device %s is already locked. Try 'lsof | grep %s' to find "
                "other processes that currently have the port open.",
                port_name, port_name);
@@ -147,7 +148,7 @@ void microstrain_3dmgx2_imu::IMU::openPort(const char *port_name) {
   // Change port settings
   struct termios term;
   if (tcgetattr(fd, &term) < 0)
-    IMU_EXCEPT(microstrain_3dmgx2_imu::Exception,
+    IMU_EXCEPT(Exception,
                "Unable to get serial port attributes. The port you specified "
                "(%s) may not be a serial port.",
                port_name);
@@ -157,46 +158,46 @@ void microstrain_3dmgx2_imu::IMU::openPort(const char *port_name) {
   cfsetospeed(&term, B115200);
 
   if (tcsetattr(fd, TCSAFLUSH, &term) < 0)
-    IMU_EXCEPT(microstrain_3dmgx2_imu::Exception,
+    IMU_EXCEPT(Exception,
                "Unable to set serial port attributes. The port you specified "
                "(%s) may not be a serial port.",
                port_name);  /// @todo tcsetattr returns true if at least one
-                            /// attribute was set. Hence, we might not have set
-                            /// everything on success.
+  /// attribute was set. Hence, we might not have set
+  /// everything on success.
 
   // Stop continuous mode
   stopContinuous();
 
   // Make sure queues are empty before we begin
   if (tcflush(fd, TCIOFLUSH) != 0)
-    IMU_EXCEPT(microstrain_3dmgx2_imu::Exception,
+    IMU_EXCEPT(Exception,
                "Tcflush failed. Please report this error if you see it.");
 }
 
 //------------------------------------------------------------------------------
 //
-void microstrain_3dmgx2_imu::IMU::closePort() {
+void ImuDriver::closePort() {
   if (fd != -1) {
     if (continuous) {
       try {
         // ROS_DEBUG("stopping continuous");
         stopContinuous();
 
-      } catch (microstrain_3dmgx2_imu::Exception &e) {
+      } catch (Exception &e) {
         // Exceptions here are fine since we are closing anyways
       }
     }
 
     if (close(fd) != 0)
-      IMU_EXCEPT(microstrain_3dmgx2_imu::Exception,
-                 "Unable to close serial port; [%s]", strerror(errno));
+      IMU_EXCEPT(Exception, "Unable to close serial port; [%s]",
+                 strerror(errno));
     fd = -1;
   }
 }
 
 //------------------------------------------------------------------------------
 //
-void microstrain_3dmgx2_imu::IMU::initTime(double fix_off) {
+void ImuDriver::initTime(double fix_off) {
   wraps = 0;
 
   uint8_t cmd[1];
@@ -222,8 +223,7 @@ void microstrain_3dmgx2_imu::IMU::initTime(double fix_off) {
 
 //------------------------------------------------------------------------------
 //
-void microstrain_3dmgx2_imu::IMU::initGyros(double *bias_x, double *bias_y,
-                                            double *bias_z) {
+void ImuDriver::initGyros(double *bias_x, double *bias_y, double *bias_z) {
   wraps = 0;
 
   uint8_t cmd[5];
@@ -245,7 +245,7 @@ void microstrain_3dmgx2_imu::IMU::initGyros(double *bias_x, double *bias_y,
 
 //------------------------------------------------------------------------------
 //
-bool microstrain_3dmgx2_imu::IMU::setContinuous(cmd command) {
+bool ImuDriver::setContinuous(cmd command) {
   uint8_t cmd[4];
   uint8_t rep[8];
 
@@ -267,7 +267,7 @@ bool microstrain_3dmgx2_imu::IMU::setContinuous(cmd command) {
 
 //------------------------------------------------------------------------------
 //
-void microstrain_3dmgx2_imu::IMU::stopContinuous() {
+void ImuDriver::stopContinuous() {
   uint8_t cmd[3];
 
   cmd[0] = CMD_STOP_CONTINUOUS;
@@ -282,18 +282,15 @@ void microstrain_3dmgx2_imu::IMU::stopContinuous() {
 
   usleep(1000000);
 
-  if (tcflush(fd, TCIOFLUSH) != 0)
-    IMU_EXCEPT(microstrain_3dmgx2_imu::Exception, "Tcflush failed");
+  if (tcflush(fd, TCIOFLUSH) != 0) IMU_EXCEPT(Exception, "Tcflush failed");
 
   continuous = false;
 }
 
 //------------------------------------------------------------------------------
 //
-void microstrain_3dmgx2_imu::IMU::receiveAccelAngrateMag(uint64_t *time,
-                                                         double accel[3],
-                                                         double angrate[3],
-                                                         double mag[3]) {
+void ImuDriver::receiveAccelAngrateMag(uint64_t *time, double accel[3],
+                                       double angrate[3], double mag[3]) {
   int i, k;
   uint8_t rep[43];
 
@@ -331,8 +328,9 @@ void microstrain_3dmgx2_imu::IMU::receiveAccelAngrateMag(uint64_t *time,
 
 //------------------------------------------------------------------------------
 //
-void microstrain_3dmgx2_imu::IMU::receiveAccelAngrateOrientation(
-    uint64_t *time, double accel[3], double angrate[3], double orientation[9]) {
+void ImuDriver::receiveAccelAngrateOrientation(uint64_t *time, double accel[3],
+                                               double angrate[3],
+                                               double orientation[9]) {
   int i, k;
   uint8_t rep[67];
 
@@ -370,9 +368,8 @@ void microstrain_3dmgx2_imu::IMU::receiveAccelAngrateOrientation(
 
 //------------------------------------------------------------------------------
 //
-void microstrain_3dmgx2_imu::IMU::receiveAccelAngrate(uint64_t *time,
-                                                      double accel[3],
-                                                      double angrate[3]) {
+void ImuDriver::receiveAccelAngrate(uint64_t *time, double accel[3],
+                                    double angrate[3]) {
   int i, k;
   uint8_t rep[31];
 
@@ -401,9 +398,8 @@ void microstrain_3dmgx2_imu::IMU::receiveAccelAngrate(uint64_t *time,
 
 //------------------------------------------------------------------------------
 //
-void microstrain_3dmgx2_imu::IMU::receiveDelvelDelang(uint64_t *time,
-                                                      double delvel[3],
-                                                      double delang[3]) {
+void ImuDriver::receiveDelvelDelang(uint64_t *time, double delvel[3],
+                                    double delang[3]) {
   int i, k;
   uint8_t rep[31];
 
@@ -432,8 +428,8 @@ void microstrain_3dmgx2_imu::IMU::receiveDelvelDelang(uint64_t *time,
 
 //------------------------------------------------------------------------------
 //
-void microstrain_3dmgx2_imu::IMU::receiveEuler(uint64_t *time, double *roll,
-                                               double *pitch, double *yaw) {
+void ImuDriver::receiveEuler(uint64_t *time, double *roll, double *pitch,
+                             double *yaw) {
   uint8_t rep[19];
 
   uint64_t sys_time;
@@ -451,8 +447,7 @@ void microstrain_3dmgx2_imu::IMU::receiveEuler(uint64_t *time, double *roll,
 
 //------------------------------------------------------------------------------
 //
-bool microstrain_3dmgx2_imu::IMU::getDeviceIdentifierString(id_string type,
-                                                            char id[17]) {
+bool ImuDriver::getDeviceIdentifierString(id_string type, char id[17]) {
   uint8_t cmd[2];
   uint8_t rep[20];
 
@@ -475,9 +470,11 @@ bool microstrain_3dmgx2_imu::IMU::getDeviceIdentifierString(id_string type,
 
 //------------------------------------------------------------------------------
 //
-void microstrain_3dmgx2_imu::IMU::receiveAccelAngrateMagOrientation(
-    uint64_t *time, double accel[3], double angrate[3], double mag[3],
-    double orientation[9]) {
+void ImuDriver::receiveAccelAngrateMagOrientation(uint64_t *time,
+                                                  double accel[3],
+                                                  double angrate[3],
+                                                  double mag[3],
+                                                  double orientation[9]) {
   uint8_t rep[CMD_ACCEL_ANGRATE_MAG_ORIENT_REP_LEN];
 
   int k, i;
@@ -520,17 +517,15 @@ void microstrain_3dmgx2_imu::IMU::receiveAccelAngrateMagOrientation(
 
 //------------------------------------------------------------------------------
 //
-void microstrain_3dmgx2_imu::IMU::receiveRawAccelAngrate(uint64_t *time,
-                                                         double accel[3],
-                                                         double angrate[3]) {
+void ImuDriver::receiveRawAccelAngrate(uint64_t *time, double accel[3],
+                                       double angrate[3]) {
   int i, k;
   uint8_t rep[CMD_RAW_ACCEL_ANGRATE_LEN];
 
   uint64_t sys_time;
   uint64_t imu_time;
 
-  receive(microstrain_3dmgx2_imu::IMU::CMD_RAW, rep, sizeof(rep), 1000,
-          &sys_time);
+  receive(ImuDriver::CMD_RAW, rep, sizeof(rep), 1000, &sys_time);
 
   // Read the accelerator AD register values 0 - 65535 given as float
   k = 1;
@@ -552,7 +547,7 @@ void microstrain_3dmgx2_imu::IMU::receiveRawAccelAngrate(uint64_t *time,
 
 //------------------------------------------------------------------------------
 //
-uint64_t microstrain_3dmgx2_imu::IMU::extractTime(uint8_t *addr) {
+uint64_t ImuDriver::extractTime(uint8_t *addr) {
   uint32_t ticks = bswap_32(*(uint32_t *)(addr));
 
   if (ticks < last_ticks) {
@@ -568,19 +563,19 @@ uint64_t microstrain_3dmgx2_imu::IMU::extractTime(uint8_t *addr) {
               ? (uint64_t)(all_ticks * (1000000000.0 / TICKS_PER_SEC_GX3))
               : (uint64_t)(all_ticks * (1000000000.0 /
                                         TICKS_PER_SEC_GX2)));  // syntax a bit
-                                                               // funny because
-                                                               // C++ compiler
-                                                               // doesn't like
-                                                               // conditional ?:
-                                                               // operator near
-                                                               // the static
-                                                               // consts (???)
+  // funny because
+  // C++ compiler
+  // doesn't like
+  // conditional ?:
+  // operator near
+  // the static
+  // consts (???)
 }
 
 //------------------------------------------------------------------------------
 //
-int microstrain_3dmgx2_imu::IMU::transact(void *cmd, int cmd_len, void *rep,
-                                          int rep_len, int timeout) {
+int ImuDriver::transact(void *cmd, int cmd_len, void *rep, int rep_len,
+                        int timeout) {
   send(cmd, cmd_len);
 
   return receive(*(uint8_t *)cmd, rep, rep_len, timeout);
@@ -588,23 +583,20 @@ int microstrain_3dmgx2_imu::IMU::transact(void *cmd, int cmd_len, void *rep,
 
 //------------------------------------------------------------------------------
 //
-int microstrain_3dmgx2_imu::IMU::send(void *cmd, int cmd_len) {
+int ImuDriver::send(void *cmd, int cmd_len) {
   int bytes;
 
   // Write the data to the port
   bytes = write(fd, cmd, cmd_len);
   if (bytes < 0)
-    IMU_EXCEPT(microstrain_3dmgx2_imu::Exception, "error writing to IMU [%s]",
-               strerror(errno));
+    IMU_EXCEPT(Exception, "error writing to IMU [%s]", strerror(errno));
 
   if (bytes != cmd_len)
-    IMU_EXCEPT(microstrain_3dmgx2_imu::Exception,
-               "whole message not written to IMU");
+    IMU_EXCEPT(Exception, "whole message not written to IMU");
 
   // Make sure the queue is drained
   // Synchronous IO doesnt always work
-  if (tcdrain(fd) != 0)
-    IMU_EXCEPT(microstrain_3dmgx2_imu::Exception, "tcdrain failed");
+  if (tcdrain(fd) != 0) IMU_EXCEPT(Exception, "tcdrain failed");
 
   return bytes;
 }
@@ -621,29 +613,24 @@ static int read_with_timeout(int fd, void *buff, size_t count, int timeout) {
 
   if (timeout == 0)
     timeout = -1;  // For compatibility with former behavior, 0 means no
-                   // timeout. For poll, negative means no timeout.
+  // timeout. For poll, negative means no timeout.
 
   if ((retval = poll(ufd, 1, timeout)) < 0)
-    IMU_EXCEPT(microstrain_3dmgx2_imu::Exception, "poll failed  [%s]",
-               strerror(errno));
+    IMU_EXCEPT(Exception, "poll failed  [%s]", strerror(errno));
 
-  if (retval == 0)
-    IMU_EXCEPT(microstrain_3dmgx2_imu::TimeoutException, "timeout reached");
+  if (retval == 0) IMU_EXCEPT(TimeoutException, "timeout reached");
 
   nbytes = read(fd, (uint8_t *)buff, count);
 
-  if (nbytes < 0)
-    IMU_EXCEPT(microstrain_3dmgx2_imu::Exception, "read failed  [%s]",
-               strerror(errno));
+  if (nbytes < 0) IMU_EXCEPT(Exception, "read failed  [%s]", strerror(errno));
 
   return nbytes;
 }
 
 //------------------------------------------------------------------------------
 //
-int microstrain_3dmgx2_imu::IMU::receive(uint8_t command, void *rep,
-                                         int rep_len, int timeout,
-                                         uint64_t *sys_time) {
+int ImuDriver::receive(uint8_t command, void *rep, int rep_len, int timeout,
+                       uint64_t *sys_time) {
   int nbytes, bytes, skippedbytes;
 
   skippedbytes = 0;
@@ -671,9 +658,7 @@ int microstrain_3dmgx2_imu::IMU::receive(uint8_t command, void *rep,
     nbytes =
         read_with_timeout(fd, (uint8_t *)rep + bytes, rep_len - bytes, timeout);
 
-    if (nbytes < 0)
-      IMU_EXCEPT(microstrain_3dmgx2_imu::Exception, "read failed  [%s]",
-                 strerror(errno));
+    if (nbytes < 0) IMU_EXCEPT(Exception, "read failed  [%s]", strerror(errno));
 
     bytes += nbytes;
   }
@@ -687,7 +672,7 @@ int microstrain_3dmgx2_imu::IMU::receive(uint8_t command, void *rep,
 
   // If wrong throw Exception
   if (checksum != bswap_16(*(uint16_t *)((uint8_t *)rep + rep_len - 2)))
-    IMU_EXCEPT(microstrain_3dmgx2_imu::CorruptedDataException,
+    IMU_EXCEPT(CorruptedDataException,
                "invalid checksum.\n Make sure the IMU sensor is connected to "
                "this computer.");
 
@@ -696,8 +681,7 @@ int microstrain_3dmgx2_imu::IMU::receive(uint8_t command, void *rep,
 
 //------------------------------------------------------------------------------
 //
-uint64_t microstrain_3dmgx2_imu::IMU::filterTime(uint64_t imu_time,
-                                                 uint64_t sys_time) {
+uint64_t ImuDriver::filterTime(uint64_t imu_time, uint64_t sys_time) {
   // first calculate the sum of KF_NUM_SUM measurements
   if (counter < KF_NUM_SUM) {
     counter++;
@@ -722,7 +706,7 @@ uint64_t microstrain_3dmgx2_imu::IMU::filterTime(uint64_t imu_time,
 
 //------------------------------------------------------------------------------
 //
-double microstrain_3dmgx2_imu::IMU::toDouble(uint64_t time) {
+double ImuDriver::toDouble(uint64_t time) {
   double res = trunc(time / 1e9);
   res += (((double)time) / 1e9) - res;
   return res;
@@ -730,13 +714,11 @@ double microstrain_3dmgx2_imu::IMU::toDouble(uint64_t time) {
 
 //------------------------------------------------------------------------------
 //
-uint64_t microstrain_3dmgx2_imu::IMU::toUint64_t(double time) {
-  return (uint64_t)(time * 1e9);
-}
+uint64_t ImuDriver::toUint64_t(double time) { return (uint64_t)(time * 1e9); }
 
 ///////////////////////////////////////////////////////////////////////////////
 // This command will do a soft reset
-void microstrain_3dmgx2_imu::IMU::reset() {
+void ImuDriver::reset() {
   uint8_t cmd[2];
 
   cmd[0] = CMD_RESET_IMU;
@@ -748,7 +730,7 @@ void microstrain_3dmgx2_imu::IMU::reset() {
 
 ///////////////////////////////////////////////////////////////////////////////
 // This command will return the version of the firmware of the imu
-std::string microstrain_3dmgx2_imu::IMU::getFirmware() {
+std::string ImuDriver::getFirmware() {
   uint8_t cmd[1];
   uint8_t rep[7];
   uint32_t version;
@@ -763,11 +745,10 @@ std::string microstrain_3dmgx2_imu::IMU::getFirmware() {
   }
 
   if (rep[0] != CMD_FIRMWARE_VERSION) {
-    IMU_EXCEPT(microstrain_3dmgx2_imu::Exception,
-               "Wrong command receive from the IMU");
+    IMU_EXCEPT(Exception, "Wrong command receive from the IMU");
   } else if (checksum !=
              bswap_16(*(uint16_t *)((uint8_t *)rep + sizeof(rep) - 2))) {
-    IMU_EXCEPT(microstrain_3dmgx2_imu::CorruptedDataException,
+    IMU_EXCEPT(CorruptedDataException,
                "invalid checksum.\n Something went wrong.");
   } else {
     version = rep[1];
@@ -781,14 +762,16 @@ std::string microstrain_3dmgx2_imu::IMU::getFirmware() {
     firm_version = std::to_string(version);
 
     std::stringstream ss;
-    ss << firm_version.substr(0,1);
+    ss << firm_version.substr(0, 1);
     ss << ".";
-    ss << firm_version.substr(1,1);
-    ss << ".";		
-    ss << firm_version.substr(2,2);
-  
-    firm_version  = ss.str();    
+    ss << firm_version.substr(1, 1);
+    ss << ".";
+    ss << firm_version.substr(2, 2);
+
+    firm_version = ss.str();
   }
 
   return firm_version;
 }
+
+}  // namespace provider_imu

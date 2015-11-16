@@ -25,12 +25,12 @@
 #include "provider_imu/imu_node.h"
 
 int main(int argc, char** argv) {
-  ros::init(argc, argv, "microstrain_3dmgx2_node");
+  ros::init(argc, argv, "provider_imu_node");
 
   ros::NodeHandle nh;
 
-  ImuNode in(nh);
-  in.spin();
+  provider_imu::ImuNode in(nh);
+  in.Spin();
 
   return (0);
 }

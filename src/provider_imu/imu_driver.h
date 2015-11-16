@@ -18,14 +18,14 @@
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-#ifndef MS_3DMGX2_HH
-#define MS_3DMGX2_HH
+#ifndef PROVIDER_IMU_IMU_DRIVER_H_
+#define PROVIDER_IMU_IMU_DRIVER_H_
 
 #include <fstream>
 #include <stdexcept>
 #include <stdint.h>
 
-namespace microstrain_3dmgx2_imu {
+namespace provider_imu {
 
 //! Macro for defining exception (std::runtime_error should be top parent)
 #define DEF_EXCEPTION(name, parent)        \
@@ -41,7 +41,7 @@ DEF_EXCEPTION(CorruptedDataException, Exception);
 #undef DEF_EXCEPTION
 
 //! A class for interfacing to the microstrain 3dmgx2 and inertialink IMUs
-/*!
+/**
  * Note: This class is unreviewed and unsupported. It may change at any
  * time without notice.
  *
@@ -87,7 +87,7 @@ DEF_EXCEPTION(CorruptedDataException, Exception);
  *   imu.close_port();
  * \endcode
  */
-class IMU {
+class ImuDriver {
   //! IMU internal ticks/second
   static const int TICKS_PER_SEC_GX2 = 19660800;
   static const int TICKS_PER_SEC_GX3 = 62500;
@@ -142,13 +142,13 @@ class IMU {
   };
 
   //! Constructor
-  IMU();
+  ImuDriver();
 
   // Destructor
-  ~IMU();
+  ~ImuDriver();
 
   //! Open the port
-  /*!
+  /**
    * This must be done before the imu can be used.
    *
    * \param port_name   A character array containing the name of the port
@@ -160,7 +160,7 @@ class IMU {
   void closePort();
 
   //! Initialize timing variables.
-  /*!
+  /**
    * This call determines the initial offset of the imu relative to
    * system clock time, and resets the kalman filter state.
    *
@@ -169,7 +169,7 @@ class IMU {
   void initTime(double fix_off);
 
   //! Initial gyros
-  /*!
+  /**
    * This call will prompt the IMU to run its gyro initialization
    * routine.
    *
@@ -182,7 +182,7 @@ class IMU {
   void initGyros(double *bias_x = 0, double *bias_y = 0, double *bias_z = 0);
 
   //! Put the device in continuous mode
-  /*!
+  /**
    * This call puts the IMU into a mode where it is continuously
    * outputting a particular message.
    *
@@ -196,7 +196,7 @@ class IMU {
   void stopContinuous();
 
   //! Read a message of type "ACCEL_ANGRATE"
-  /*!
+  /**
    * \param time    Pointer to uint64_t which will receive time
    * \param accel   array of accelerations which will be filled
    * \param angrate array of angular rates which will be filled
@@ -204,7 +204,7 @@ class IMU {
   void receiveAccelAngrate(uint64_t *time, double accel[3], double angrate[3]);
 
   //! Read a message of type "DELVEL_DELANG"
-  /*!
+  /**
    * \param time    Pointer to uint64_t which will receive time
    * \param delvel array of accelerations which will be filled
    * \param delang array of angular rates which will be filled
@@ -212,7 +212,7 @@ class IMU {
   void receiveDelvelDelang(uint64_t *time, double delvel[3], double delang[3]);
 
   //! Read a message of type "ACCEL_ANGRATE_MAG"
-  /*!
+  /**
    * \param time    Pointer to uint64_t which will receive time
    * \param accel   array of accelerations which will be filled
    * \param angrate array of angular rates which will be filled
@@ -222,7 +222,7 @@ class IMU {
                               double angrate[3], double mag[3]);
 
   //! Read a message of type "EULER"
-  /*!
+  /**
    * \param time    Pointer to uint64_t which will receive time
    * \param roll    Pointer to roll value which will be filled
    * \param pitch   Pointer to pitch value which will be filled
@@ -231,7 +231,7 @@ class IMU {
   void receiveEuler(uint64_t *time, double *roll, double *pitch, double *yaw);
 
   //! Read a message of type "ACCEL_ANGRATE_ORIENTATION"
-  /*!
+  /**
    * \param time        Pointer to uint64_t which will receive time
    * \param accel       array of accelerations which will be filled
    * \param angrate     array of angular rates which will be filled
@@ -241,7 +241,7 @@ class IMU {
                                       double angrate[3], double orientation[9]);
 
   //! Read a message of type "ACCEL_ANGRATE_MAG_ORIENT"
-  /*!
+  /**
    * \param time    Pointer to uint64_t which will receive time
    * \param accel   array of accelerations which will be filled
    * \param angrate array of angular rates which will be filled
@@ -253,7 +253,7 @@ class IMU {
                                          double orientation[9]);
 
   //! Read a message of type "CMD_RAW"
-  /*!
+  /**
    * \param time    Pointer to uint64_t which will receive time
    * \param accel   array of accelerations which will be filled
    * \param angrate array of angular rates which will be filled
@@ -262,13 +262,13 @@ class IMU {
                               double angrate[3]);
 
   //! Set the fixed time offset
-  /*!
+  /**
    * \param fix_off  Fixed time offset in seconds
    */
   void setFixedOffset(double fix_off) { fixed_offset = fix_off; };
 
   //! Read one of the device identifier strings
-  /*!
+  /**
    * \param type Indicates which identifier string to read
    * \param id Array that gets filled with the identifier string
    * \return True if successful
@@ -340,5 +340,7 @@ class IMU {
   //! Is the IMU a GX3?
   bool is_gx3;
 };
-}
-#endif
+
+}  // namespace provider_imu
+
+#endif  // PROVIDER_IMU_IMU_DRIVER_H_

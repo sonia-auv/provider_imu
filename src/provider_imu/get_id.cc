@@ -34,34 +34,50 @@
 #include <string>
 #include <boost/format.hpp>
 #include "ros/console.h"
-#include "provider_imu/3dmgx2.h"
+#include "imu_driver.h"
 #include "log4cxx/logger.h"
 
-std::string getID(microstrain_3dmgx2_imu::IMU &imu) {
+namespace provider_imu {
+
+std::string GetID(provider_imu::ImuDriver &imu) {
   char dev_name[17];
-  char dev_model_num[17];
-  char dev_serial_num[17];
-  char dev_opt[17];
-  imu.getDeviceIdentifierString(microstrain_3dmgx2_imu::IMU::ID_DEVICE_NAME,
+  imu.getDeviceIdentifierString(provider_imu::ImuDriver::ID_DEVICE_NAME,
                                 dev_name);
-  imu.getDeviceIdentifierString(microstrain_3dmgx2_imu::IMU::ID_MODEL_NUMBER,
+
+  char dev_model_num[17];
+  imu.getDeviceIdentifierString(provider_imu::ImuDriver::ID_MODEL_NUMBER,
                                 dev_model_num);
-  imu.getDeviceIdentifierString(microstrain_3dmgx2_imu::IMU::ID_SERIAL_NUMBER,
+
+  char dev_serial_num[17];
+  imu.getDeviceIdentifierString(provider_imu::ImuDriver::ID_SERIAL_NUMBER,
                                 dev_serial_num);
-  imu.getDeviceIdentifierString(microstrain_3dmgx2_imu::IMU::ID_DEVICE_OPTIONS,
+
+  char dev_opt[17];
+  imu.getDeviceIdentifierString(provider_imu::ImuDriver::ID_DEVICE_OPTIONS,
                                 dev_opt);
 
   char *dev_name_ptr = dev_name;
   char *dev_model_num_ptr = dev_model_num;
   char *dev_serial_num_ptr = dev_serial_num;
 
-  while (*dev_name_ptr == ' ') dev_name_ptr++;
-  while (*dev_model_num_ptr == ' ') dev_model_num_ptr++;
-  while (*dev_serial_num_ptr == ' ') dev_serial_num_ptr++;
+  while (*dev_name_ptr == ' ') {
+    dev_name_ptr++;
+  }
+
+  while (*dev_model_num_ptr == ' ') {
+    dev_model_num_ptr++;
+  }
+
+  while (*dev_serial_num_ptr == ' ') {
+    dev_serial_num_ptr++;
+  }
 
   return (boost::format("%s_%s-%s") % dev_name_ptr % dev_model_num_ptr %
-          dev_serial_num_ptr).str();
+      dev_serial_num_ptr)
+      .str();
 }
+
+} // namespace provider_imu
 
 int main(int argc, char **argv) {
   if (argc < 2 || argc > 3) {
@@ -81,11 +97,11 @@ int main(int argc, char **argv) {
     ros::console::notifyLoggerLevelsChanged();
   }
 
-  microstrain_3dmgx2_imu::IMU imu;
+  provider_imu::ImuDriver imu;
 
   try {
     imu.openPort(argv[1]);
-  } catch (microstrain_3dmgx2_imu::Exception &e) {
+  } catch (provider_imu::Exception &e) {
     fprintf(stderr,
             "Unable to open IMU at port %s. IMU may be disconnected.\n%s",
             argv[1], e.what());
@@ -94,19 +110,18 @@ int main(int argc, char **argv) {
 
   imu.initTime(0.0);
 
-  std::string id = getID(imu);
+  std::string id = provider_imu::GetID(imu);
 
   if (verbose) fprintf(stdout, "IMU Device at port %s has ID: ", argv[1]);
   fprintf(stdout, "%s\n", id.c_str());
 
   std::string firmware = imu.getFirmware();
 
-
   std::cout << "Firmware version is: " << firmware << std::endl;
 
   try {
     imu.closePort();
-  } catch (microstrain_3dmgx2_imu::Exception &e) {
+  } catch (provider_imu::Exception &e) {
     fprintf(stderr, "Exception thrown while stopping IMU.\n%s", e.what());
     return 1;
   }

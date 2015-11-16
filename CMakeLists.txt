@@ -53,7 +53,7 @@ file(GLOB_RECURSE provider_imu_FILES "${provider_imu_SRC_DIR}/*.cc" "${provider_
 list(REMOVE_ITEM provider_imu_FILES
     ${CMAKE_CURRENT_SOURCE_DIR}/${provider_imu_SRC_DIR}/${PROJECT_NAME}/main.cc
     ${CMAKE_CURRENT_SOURCE_DIR}/${provider_imu_SRC_DIR}/${PROJECT_NAME}/get_id.cc
-    ${CMAKE_CURRENT_SOURCE_DIR}/${provider_imu_SRC_DIR}/${PROJECT_NAME}/imu_reset.cc)
+    ${CMAKE_CURRENT_SOURCE_DIR}/${provider_imu_SRC_DIR}/${PROJECT_NAME}/reset.cc)
 
 # Include all the directories where source can be found.
 include_directories(
@@ -73,6 +73,6 @@ add_executable(get_id ${provider_imu_SRC_DIR}/${PROJECT_NAME}/get_id.cc ${provid
 target_link_libraries(get_id ${catkin_LIBRARIES} ${LOG4CXX_LIBRARY})
 add_dependencies(get_id ${PROJECT_NAME}_generate_messages_cpp)
 
-add_executable(imu_reset ${provider_imu_SRC_DIR}/${PROJECT_NAME}/imu_reset.cc ${provider_imu_FILES})
-target_link_libraries(imu_reset ${catkin_LIBRARIES} ${LOG4CXX_LIBRARY})
-add_dependencies(imu_reset ${PROJECT_NAME}_generate_messages_cpp)
+add_executable(reset ${provider_imu_SRC_DIR}/${PROJECT_NAME}/reset.cc ${provider_imu_FILES})
+target_link_libraries(reset ${catkin_LIBRARIES} ${LOG4CXX_LIBRARY})
+add_dependencies(reset ${PROJECT_NAME}_generate_messages_cpp)

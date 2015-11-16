@@ -8,26 +8,26 @@
  */
 
 #include "ros/console.h"
-#include "provider_imu/3dmgx2.h"
+#include "imu_driver.h"
 
 int main(int argc, char **argv) {
   if (argv[2] != "reset") {
     ROS_WARN(
         "You are about to reset the imu software! Usage:  imu_reset "
         "/dev/ttyUSB? reset.");
-  } else if (argv == NULL) {
+  } else if (argv == nullptr) {
     ROS_WARN(
         "You are about to reset the imu software! Usage:  imu_reset "
         "/dev/ttyUSB? reset.");
   }
 
-  microstrain_3dmgx2_imu::IMU imu;
+  provider_imu::ImuDriver imu;
 
   try {
     imu.openPort(argv[1]);
-  } catch (microstrain_3dmgx2_imu::Exception &e) {
-    std::cout << "unable to communicate with th imuon port: " << argv[1] << "\n"
-              << e.what() << std::endl;
+  } catch (provider_imu::Exception &e) {
+    std::cout << "unable to communicate with the IMU on port: " << argv[1]
+              << "\n" << e.what() << std::endl;
     return 1;
   }
 

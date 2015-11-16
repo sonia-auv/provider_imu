@@ -35,6 +35,9 @@
  *  POSSIBILITY OF SUCH DAMAGE.
  */
 
+#ifndef PROVIDER_IMU_IMU_NODE_H_
+#define PROVIDER_IMU_IMU_NODE_H_
+
 #include <assert.h>
 #include <math.h>
 #include <iostream>
@@ -50,94 +53,132 @@
 #include <tf/transform_datatypes.h>
 #include <std_msgs/Bool.h>
 #include <provider_imu/AddOffset.h>
-#include "provider_imu/3dmgx2.h"
+#include "imu_driver.h"
+
+namespace provider_imu {
 
 class ImuNode {
  public:
+  //============================================================================
+  // P U B L I C   C / D T O R S
+
   ImuNode(ros::NodeHandle h);
 
   ~ImuNode();
 
-  void setErrorStatusf(const char* format, ...);
+  //============================================================================
+  // P U B L I C   M E T H O D S
+
+  void SetErrorStatusF(const char *format, ...);
 
   // Prints an error message if it isn't the same old error message.
-  void setErrorStatus(const std::string msg);
+  void SetErrorStatus(const std::string msg);
 
-  void clearErrorStatus();
+  void ClearErrorStatus();
 
-  int start();
+  int Start();
 
   std::string getID(bool output_info = false);
 
-  int stop();
+  int Stop();
 
-  int publish_datum();
+  int PublishData();
 
-  bool spin();
+  bool Spin();
 
-  void publish_is_calibrated();
+  void PublishIsCalibrated();
 
-  void pretest(diagnostic_updater::DiagnosticStatusWrapper& status);
+  void PreTest(diagnostic_updater::DiagnosticStatusWrapper &status);
 
-  void InterruptionTest(diagnostic_updater::DiagnosticStatusWrapper& status);
+  void InterruptionTest(diagnostic_updater::DiagnosticStatusWrapper &status);
 
-  void ConnectTest(diagnostic_updater::DiagnosticStatusWrapper& status);
+  void ConnectTest(diagnostic_updater::DiagnosticStatusWrapper &status);
 
-  void ReadIDTest(diagnostic_updater::DiagnosticStatusWrapper& status);
+  void ReadIDTest(diagnostic_updater::DiagnosticStatusWrapper &status);
 
-  void GyroBiasTest(diagnostic_updater::DiagnosticStatusWrapper& status);
+  void GyroBiasTest(diagnostic_updater::DiagnosticStatusWrapper &status);
 
-  void getData(sensor_msgs::Imu& data);
+  void GetData(sensor_msgs::Imu &data);
 
-  tf::Quaternion getQuat(sensor_msgs::Imu& data);
+  tf::Quaternion GetQuaternion(sensor_msgs::Imu &data);
 
-  void StreamedDataTest(diagnostic_updater::DiagnosticStatusWrapper& status);
+  void StreamedDataTest(diagnostic_updater::DiagnosticStatusWrapper &status);
 
-  void GravityTest(diagnostic_updater::DiagnosticStatusWrapper& status);
+  void GravityTest(diagnostic_updater::DiagnosticStatusWrapper &status);
 
-  void DisconnectTest(diagnostic_updater::DiagnosticStatusWrapper& status);
+  void DisconnectTest(diagnostic_updater::DiagnosticStatusWrapper &status);
 
-  void ResumeTest(diagnostic_updater::DiagnosticStatusWrapper& status);
+  void ResumeTest(diagnostic_updater::DiagnosticStatusWrapper &status);
 
-  void deviceStatus(diagnostic_updater::DiagnosticStatusWrapper& status);
+  void GetDeviceStatus(diagnostic_updater::DiagnosticStatusWrapper &status);
 
-  void calibrationStatus(diagnostic_updater::DiagnosticStatusWrapper& status);
+  void GetCalibrationStatus(
+      diagnostic_updater::DiagnosticStatusWrapper &status);
 
-  bool addOffset(provider_imu::AddOffset::Request& req,
-                 provider_imu::AddOffset::Response& resp);
+  bool AddOffsetCallback(provider_imu::AddOffset::Request &req,
+                         provider_imu::AddOffset::Response &resp);
 
-  bool calibrate(std_srvs::Empty::Request& req,
-                 std_srvs::Empty::Response& resp);
+  bool CalibrateCallback(std_srvs::Empty::Request &req,
+                         std_srvs::Empty::Response &resp);
 
-  void doCalibrate();
+  void CheckCalibration();
 
  private:
-  microstrain_3dmgx2_imu::IMU imu;
+  //============================================================================
+  // P R I V A T E  M E M B E R S
+
+  /**
+   * The driver that handle the communication between this software and the IMU.
+   */
+  provider_imu::ImuDriver imu;
+
+  /**
+   * ROS Message that contains the IMU informations.
+   * This message will be published on the data topic.
+   */
   sensor_msgs::Imu reading;
 
+  /**
+   * The serial port to connect to.
+   * This information is being used by the serial driver implementation.
+   */
   std::string port;
 
-  microstrain_3dmgx2_imu::IMU::cmd cmd;
+  /**
+   * All possible command that the IMU Node can send to the IMU.
+   */
+  provider_imu::ImuDriver::cmd cmd;
 
   self_test::TestRunner self_test_;
+
   diagnostic_updater::Updater diagnostic_;
 
   ros::NodeHandle node_handle_;
+
   ros::NodeHandle private_node_handle_;
+
   ros::Publisher imu_data_pub_;
+
   ros::ServiceServer add_offset_serv_;
+
   ros::ServiceServer calibrate_serv_;
+
   ros::Publisher is_calibrated_pub_;
 
   bool running;
 
   bool autocalibrate_;
+
   bool calibrate_requested_;
+
   bool calibrated_;
 
   int error_count_;
+
   int slow_count_;
+
   std::string was_slow_;
+
   std::string error_status_;
 
   std::string frameid_;
@@ -145,15 +186,30 @@ class ImuNode {
   double offset_;
 
   double bias_x_;
+
   double bias_y_;
+
   double bias_z_;
 
-  double angular_velocity_stdev_, angular_velocity_covariance_;
-  double linear_acceleration_covariance_, linear_acceleration_stdev_;
-  double orientation_covariance_, orientation_stdev_;
+  double angular_velocity_stdev_;
+
+  double angular_velocity_covariance_;
+
+  double linear_acceleration_covariance_;
+
+  double linear_acceleration_stdev_;
+
+  double orientation_covariance_;
+
+  double orientation_stdev_;
 
   double max_drift_rate_;
 
   double desired_freq_;
+
   diagnostic_updater::FrequencyStatus freq_diag_;
 };
+
+}  // namespace provider_imu
+
+#endif  // PROVIDER_IMU_IMU_NODE_H_
