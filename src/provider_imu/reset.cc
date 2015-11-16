@@ -25,7 +25,7 @@ int main(int argc, char **argv) {
 
   try {
     imu.openPort(argv[1]);
-  } catch (provider_imu::Exception &e) {
+  } catch (std::runtime_error &e) {
     std::cout << "unable to communicate with the IMU on port: " << argv[1]
               << "\n" << e.what() << std::endl;
     return 1;

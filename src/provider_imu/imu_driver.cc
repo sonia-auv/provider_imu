@@ -21,7 +21,6 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <math.h>
-#include <stdio.h>
 #include <string.h>
 #include <termios.h>
 #include <unistd.h>
@@ -30,28 +29,17 @@
 #include <iostream>
 #include <sstream>
 #include "poll.h"
+#include <lib_atlas/macros.h>
+#include <lib_atlas/exceptions.h>
+#include <lib_atlas/io/formatter.h>
 #include "imu_driver.h"
 
-namespace provider_imu {
-
-//! Macro for throwing an exception with a message
-#define IMU_EXCEPT(except, msg, ...)                                \
-  {                                                                 \
-    char buf[1000];                                                 \
-    snprintf(buf, 1000, msg " (in microstrain_3dmgx2_imu::IMU:%s)", \
-             ##__VA_ARGS__, __FUNCTION__);                          \
-    throw except(buf);                                              \
-  }
-
-/* ideally it would be nice to feed these functions back into willowimu */
 #define CMD_ACCEL_ANGRATE_MAG_ORIENT_REP_LEN 79
 #define CMD_RAW_ACCEL_ANGRATE_LEN 31
 
-// Some systems (e.g., OS X) require explicit externing of static class
-// members.
-extern constexpr double ImuDriver::G;
-extern constexpr double ImuDriver::KF_K_1;
-extern constexpr double ImuDriver::KF_K_2;
+namespace provider_imu {
+
+namespace details {
 
 //! Code to swap bytes since IMU is big endian
 static inline unsigned short bswap_16(unsigned short x) {
@@ -67,10 +55,10 @@ static inline unsigned int bswap_32(unsigned int x) {
 static float extract_float(uint8_t *addr) {
   float tmp;
 
-  *((unsigned char *)(&tmp) + 3) = *(addr);
-  *((unsigned char *)(&tmp) + 2) = *(addr + 1);
-  *((unsigned char *)(&tmp) + 1) = *(addr + 2);
-  *((unsigned char *)(&tmp)) = *(addr + 3);
+  *((unsigned char *) (&tmp) + 3) = *(addr);
+  *((unsigned char *) (&tmp) + 2) = *(addr + 1);
+  *((unsigned char *) (&tmp) + 1) = *(addr + 2);
+  *((unsigned char *) (&tmp)) = *(addr + 3);
 
   return tmp;
 }
@@ -85,10 +73,18 @@ static unsigned long long time_helper() {
 #else
   struct timeval timeofday;
   gettimeofday(&timeofday, NULL);
-  return (unsigned long long)(timeofday.tv_sec) * 1000000000 +
-         (unsigned long long)(timeofday.tv_usec) * 1000;
+  return (unsigned long long) (timeofday.tv_sec) * 1000000000 +
+      (unsigned long long) (timeofday.tv_usec) * 1000;
 #endif
 }
+
+} // namespace details
+
+// Some systems (e.g., OS X) require explicit externing of static class
+// members.
+extern constexpr double ImuDriver::G;
+extern constexpr double ImuDriver::KF_K_1;
+extern constexpr double ImuDriver::KF_K_2;
 
 //==============================================================================
 // C / D T O R   S E C T I O N
@@ -127,8 +123,8 @@ void ImuDriver::openPort(const char *port_name) {
         break;
     }
 
-    IMU_EXCEPT(Exception, "Unable to open serial port [%s]. %s. %s", port_name,
-               strerror(errno), extra_msg);
+    ATLAS_THROW(std::runtime_error, atlas::Format("Unable to open serial port [{0}]. {1}. {2}", port_name,
+               strerror(errno), extra_msg));
   }
 
   // Lock the port
@@ -140,28 +136,28 @@ void ImuDriver::openPort(const char *port_name) {
   fl.l_pid = getpid();
 
   if (fcntl(fd, F_SETLK, &fl) != 0)
-    IMU_EXCEPT(Exception,
-               "Device %s is already locked. Try 'lsof | grep %s' to find "
+    ATLAS_THROW(std::runtime_error,
+                atlas::Format("Device {0} is already locked. Try 'lsof | grep {1}' to find "
                "other processes that currently have the port open.",
-               port_name, port_name);
+               port_name, port_name));
 
   // Change port settings
   struct termios term;
   if (tcgetattr(fd, &term) < 0)
-    IMU_EXCEPT(Exception,
-               "Unable to get serial port attributes. The port you specified "
-               "(%s) may not be a serial port.",
-               port_name);
+    ATLAS_THROW(std::runtime_error,
+                atlas::Format("Unable to get serial port attributes. The port you specified "
+               "({0}) may not be a serial port.",
+               port_name));
 
   cfmakeraw(&term);
   cfsetispeed(&term, B115200);
   cfsetospeed(&term, B115200);
 
   if (tcsetattr(fd, TCSAFLUSH, &term) < 0)
-    IMU_EXCEPT(Exception,
-               "Unable to set serial port attributes. The port you specified "
-               "(%s) may not be a serial port.",
-               port_name);  /// @todo tcsetattr returns true if at least one
+    ATLAS_THROW(std::runtime_error,
+                atlas::Format("Unable to set serial port attributes. The port you specified "
+               "({0}) may not be a serial port.",
+               port_name));  /// @todo tcsetattr returns true if at least one
   /// attribute was set. Hence, we might not have set
   /// everything on success.
 
@@ -170,7 +166,7 @@ void ImuDriver::openPort(const char *port_name) {
 
   // Make sure queues are empty before we begin
   if (tcflush(fd, TCIOFLUSH) != 0)
-    IMU_EXCEPT(Exception,
+    ATLAS_THROW(std::runtime_error,
                "Tcflush failed. Please report this error if you see it.");
 }
 
@@ -183,14 +179,14 @@ void ImuDriver::closePort() {
         // ROS_DEBUG("stopping continuous");
         stopContinuous();
 
-      } catch (Exception &e) {
-        // Exceptions here are fine since we are closing anyways
+      } catch (std::runtime_error &e) {
+        // std::runtime_errors here are fine since we are closing anyways
       }
     }
 
     if (close(fd) != 0)
-      IMU_EXCEPT(Exception, "Unable to close serial port; [%s]",
-                 strerror(errno));
+      ATLAS_THROW(std::runtime_error, atlas::Format("Unable to close serial port; [{0}]",
+                 strerror(errno)));
     fd = -1;
   }
 }
@@ -205,10 +201,10 @@ void ImuDriver::initTime(double fix_off) {
   cmd[0] = CMD_RAW;
 
   transact(cmd, sizeof(cmd), rep, sizeof(rep), 1000);
-  start_time = time_helper();
+  start_time = details::time_helper();
 
   int k = 25;
-  offset_ticks = bswap_32(*(uint32_t *)(rep + k));
+  offset_ticks = details::bswap_32(*(uint32_t *)(rep + k));
   last_ticks = offset_ticks;
 
   // reset kalman filter state
@@ -232,15 +228,15 @@ void ImuDriver::initGyros(double *bias_x, double *bias_y, double *bias_z) {
   cmd[0] = CMD_CAPTURE_GYRO_BIAS;
   cmd[1] = 0xC1;
   cmd[2] = 0x29;
-  *(unsigned short *)(&cmd[3]) = bswap_16(10000);
+  *(unsigned short *)(&cmd[3]) = details::bswap_16(10000);
 
   transact(cmd, sizeof(cmd), rep, sizeof(rep), 30000);
 
-  if (bias_x) *bias_x = extract_float(rep + 1);
+  if (bias_x) *bias_x = details::extract_float(rep + 1);
 
-  if (bias_y) *bias_y = extract_float(rep + 5);
+  if (bias_y) *bias_y = details::extract_float(rep + 5);
 
-  if (bias_z) *bias_z = extract_float(rep + 9);
+  if (bias_z) *bias_z = details::extract_float(rep + 9);
 }
 
 //------------------------------------------------------------------------------
@@ -282,7 +278,9 @@ void ImuDriver::stopContinuous() {
 
   usleep(1000000);
 
-  if (tcflush(fd, TCIOFLUSH) != 0) IMU_EXCEPT(Exception, "Tcflush failed");
+  if (tcflush(fd, TCIOFLUSH) != 0) {
+    ATLAS_THROW(std::runtime_error, "Tcflush failed");
+  }
 
   continuous = false;
 }
@@ -304,21 +302,21 @@ void ImuDriver::receiveAccelAngrateMag(uint64_t *time, double accel[3],
   // Read the acceleration:
   k = 1;
   for (i = 0; i < 3; i++) {
-    accel[i] = extract_float(rep + k) * G;
+    accel[i] = details::extract_float(rep + k) * G;
     k += 4;
   }
 
   // Read the angular rates
   k = 13;
   for (i = 0; i < 3; i++) {
-    angrate[i] = extract_float(rep + k);
+    angrate[i] = details::extract_float(rep + k);
     k += 4;
   }
 
   // Read the magnetometer reading.
   k = 25;
   for (i = 0; i < 3; i++) {
-    mag[i] = extract_float(rep + k);
+    mag[i] = details::extract_float(rep + k);
     k += 4;
   }
 
@@ -344,21 +342,21 @@ void ImuDriver::receiveAccelAngrateOrientation(uint64_t *time, double accel[3],
   // Read the acceleration:
   k = 1;
   for (i = 0; i < 3; i++) {
-    accel[i] = extract_float(rep + k) * G;
+    accel[i] = details::extract_float(rep + k) * G;
     k += 4;
   }
 
   // Read the angular rates
   k = 13;
   for (i = 0; i < 3; i++) {
-    angrate[i] = extract_float(rep + k);
+    angrate[i] = details::extract_float(rep + k);
     k += 4;
   }
 
   // Read the orientation matrix
   k = 25;
   for (i = 0; i < 9; i++) {
-    orientation[i] = extract_float(rep + k);
+    orientation[i] = details::extract_float(rep + k);
     k += 4;
   }
 
@@ -381,14 +379,14 @@ void ImuDriver::receiveAccelAngrate(uint64_t *time, double accel[3],
   // Read the acceleration:
   k = 1;
   for (i = 0; i < 3; i++) {
-    accel[i] = extract_float(rep + k) * G;
+    accel[i] = details::extract_float(rep + k) * G;
     k += 4;
   }
 
   // Read the angular rates
   k = 13;
   for (i = 0; i < 3; i++) {
-    angrate[i] = extract_float(rep + k);
+    angrate[i] = details::extract_float(rep + k);
     k += 4;
   }
 
@@ -411,14 +409,14 @@ void ImuDriver::receiveDelvelDelang(uint64_t *time, double delvel[3],
   // Read the delta angles:
   k = 1;
   for (i = 0; i < 3; i++) {
-    delang[i] = extract_float(rep + k);
+    delang[i] = details::extract_float(rep + k);
     k += 4;
   }
 
   // Read the delta velocities
   k = 13;
   for (i = 0; i < 3; i++) {
-    delvel[i] = extract_float(rep + k) * G;
+    delvel[i] = details::extract_float(rep + k) * G;
     k += 4;
   }
 
@@ -437,9 +435,9 @@ void ImuDriver::receiveEuler(uint64_t *time, double *roll, double *pitch,
 
   receive(CMD_EULER, rep, sizeof(rep), 1000, &sys_time);
 
-  *roll = extract_float(rep + 1);
-  *pitch = extract_float(rep + 5);
-  *yaw = extract_float(rep + 9);
+  *roll = details::extract_float(rep + 1);
+  *pitch = details::extract_float(rep + 5);
+  *yaw = details::extract_float(rep + 9);
 
   imu_time = extractTime(rep + 13);
   *time = filterTime(imu_time, sys_time);
@@ -486,28 +484,28 @@ void ImuDriver::receiveAccelAngrateMagOrientation(uint64_t *time,
   // Read the acceleration:
   k = 1;
   for (i = 0; i < 3; i++) {
-    accel[i] = extract_float(rep + k) * G;
+    accel[i] = details::extract_float(rep + k) * G;
     k += 4;
   }
 
   // Read the angular rates
   k = 13;
   for (i = 0; i < 3; i++) {
-    angrate[i] = extract_float(rep + k);
+    angrate[i] = details::extract_float(rep + k);
     k += 4;
   }
 
   // Read the magnetic field matrix
   k = 25;
   for (i = 0; i < 3; i++) {
-    mag[i] = extract_float(rep + k);
+    mag[i] = details::extract_float(rep + k);
     k += 4;
   }
 
   // Read the orientation matrix
   k = 37;
   for (i = 0; i < 9; i++) {
-    orientation[i] = extract_float(rep + k);
+    orientation[i] = details::extract_float(rep + k);
     k += 4;
   }
   imu_time = extractTime(rep + 73);
@@ -530,14 +528,14 @@ void ImuDriver::receiveRawAccelAngrate(uint64_t *time, double accel[3],
   // Read the accelerator AD register values 0 - 65535 given as float
   k = 1;
   for (i = 0; i < 3; i++) {
-    accel[i] = extract_float(rep + k);
+    accel[i] = details::extract_float(rep + k);
     k += 4;
   }
 
   // Read the angular rates AD registor values 0 - 65535 (given as float
   k = 13;
   for (i = 0; i < 3; i++) {
-    angrate[i] = extract_float(rep + k);
+    angrate[i] = details::extract_float(rep + k);
     k += 4;
   }
 
@@ -548,7 +546,7 @@ void ImuDriver::receiveRawAccelAngrate(uint64_t *time, double accel[3],
 //------------------------------------------------------------------------------
 //
 uint64_t ImuDriver::extractTime(uint8_t *addr) {
-  uint32_t ticks = bswap_32(*(uint32_t *)(addr));
+  uint32_t ticks = details::bswap_32(*(uint32_t *)(addr));
 
   if (ticks < last_ticks) {
     wraps += 1;
@@ -563,13 +561,6 @@ uint64_t ImuDriver::extractTime(uint8_t *addr) {
               ? (uint64_t)(all_ticks * (1000000000.0 / TICKS_PER_SEC_GX3))
               : (uint64_t)(all_ticks * (1000000000.0 /
                                         TICKS_PER_SEC_GX2)));  // syntax a bit
-  // funny because
-  // C++ compiler
-  // doesn't like
-  // conditional ?:
-  // operator near
-  // the static
-  // consts (???)
 }
 
 //------------------------------------------------------------------------------
@@ -588,15 +579,19 @@ int ImuDriver::send(void *cmd, int cmd_len) {
 
   // Write the data to the port
   bytes = write(fd, cmd, cmd_len);
-  if (bytes < 0)
-    IMU_EXCEPT(Exception, "error writing to IMU [%s]", strerror(errno));
+  if (bytes < 0) {
+    ATLAS_THROW(std::runtime_error, atlas::Format("error writing to IMU [{0}]", strerror(errno)));
+  }
 
-  if (bytes != cmd_len)
-    IMU_EXCEPT(Exception, "whole message not written to IMU");
+  if (bytes != cmd_len) {
+    ATLAS_THROW(std::runtime_error, "whole message not written to IMU");
+  }
 
   // Make sure the queue is drained
   // Synchronous IO doesnt always work
-  if (tcdrain(fd) != 0) IMU_EXCEPT(Exception, "tcdrain failed");
+  if (tcdrain(fd) != 0) {
+    ATLAS_THROW(std::runtime_error, "tcdrain failed");
+  }
 
   return bytes;
 }
@@ -615,14 +610,19 @@ static int read_with_timeout(int fd, void *buff, size_t count, int timeout) {
     timeout = -1;  // For compatibility with former behavior, 0 means no
   // timeout. For poll, negative means no timeout.
 
-  if ((retval = poll(ufd, 1, timeout)) < 0)
-    IMU_EXCEPT(Exception, "poll failed  [%s]", strerror(errno));
+  if ((retval = poll(ufd, 1, timeout)) < 0) {
+    ATLAS_THROW(std::runtime_error, atlas::Format("poll failed  [{0}]", strerror(errno)));
+  }
 
-  if (retval == 0) IMU_EXCEPT(TimeoutException, "timeout reached");
+  if (retval == 0) {
+    ATLAS_THROW(std::runtime_error, "timeout reached");
+  }
 
   nbytes = read(fd, (uint8_t *)buff, count);
 
-  if (nbytes < 0) IMU_EXCEPT(Exception, "read failed  [%s]", strerror(errno));
+  if (nbytes < 0) {
+    ATLAS_THROW(std::runtime_error, atlas::Format("read failed  [{0}]", strerror(errno)));
+  }
 
   return nbytes;
 }
@@ -648,7 +648,7 @@ int ImuDriver::receive(uint8_t command, void *rep, int rep_len, int timeout,
     skippedbytes++;
   }
 
-  if (sys_time != NULL) *sys_time = time_helper();
+  if (sys_time != NULL) *sys_time = details::time_helper();
 
   // We now have 1 byte
   bytes = 1;
@@ -658,7 +658,7 @@ int ImuDriver::receive(uint8_t command, void *rep, int rep_len, int timeout,
     nbytes =
         read_with_timeout(fd, (uint8_t *)rep + bytes, rep_len - bytes, timeout);
 
-    if (nbytes < 0) IMU_EXCEPT(Exception, "read failed  [%s]", strerror(errno));
+    if (nbytes < 0) ATLAS_THROW(std::runtime_error, atlas::Format("read failed  [{0}]", strerror(errno)));
 
     bytes += nbytes;
   }
@@ -670,9 +670,9 @@ int ImuDriver::receive(uint8_t command, void *rep, int rep_len, int timeout,
     checksum += ((uint8_t *)rep)[i];
   }
 
-  // If wrong throw Exception
-  if (checksum != bswap_16(*(uint16_t *)((uint8_t *)rep + rep_len - 2)))
-    IMU_EXCEPT(CorruptedDataException,
+  // If wrong throw std::runtime_error
+  if (checksum != details::bswap_16(*(uint16_t *)((uint8_t *)rep + rep_len - 2)))
+    ATLAS_THROW(atlas::CorruptedDataException,
                "invalid checksum.\n Make sure the IMU sensor is connected to "
                "this computer.");
 
@@ -745,10 +745,10 @@ std::string ImuDriver::getFirmware() {
   }
 
   if (rep[0] != CMD_FIRMWARE_VERSION) {
-    IMU_EXCEPT(Exception, "Wrong command receive from the IMU");
+    ATLAS_THROW(std::runtime_error, "Wrong command receive from the IMU");
   } else if (checksum !=
-             bswap_16(*(uint16_t *)((uint8_t *)rep + sizeof(rep) - 2))) {
-    IMU_EXCEPT(CorruptedDataException,
+             details::bswap_16(*(uint16_t *)((uint8_t *)rep + sizeof(rep) - 2))) {
+    ATLAS_THROW(atlas::CorruptedDataException,
                "invalid checksum.\n Something went wrong.");
   } else {
     version = rep[1];

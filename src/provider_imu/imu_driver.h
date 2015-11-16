@@ -27,19 +27,6 @@
 
 namespace provider_imu {
 
-//! Macro for defining exception (std::runtime_error should be top parent)
-#define DEF_EXCEPTION(name, parent)        \
-  class name : public parent {             \
-   public:                                 \
-    name(const char *msg) : parent(msg) {} \
-  }
-
-DEF_EXCEPTION(Exception, std::runtime_error);
-DEF_EXCEPTION(TimeoutException, Exception);
-DEF_EXCEPTION(CorruptedDataException, Exception);
-
-#undef DEF_EXCEPTION
-
 //! A class for interfacing to the microstrain 3dmgx2 and inertialink IMUs
 /**
  * Note: This class is unreviewed and unsupported. It may change at any

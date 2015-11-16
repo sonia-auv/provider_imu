@@ -101,7 +101,7 @@ int main(int argc, char **argv) {
 
   try {
     imu.openPort(argv[1]);
-  } catch (provider_imu::Exception &e) {
+  } catch (std::runtime_error &e) {
     fprintf(stderr,
             "Unable to open IMU at port %s. IMU may be disconnected.\n%s",
             argv[1], e.what());
@@ -121,7 +121,7 @@ int main(int argc, char **argv) {
 
   try {
     imu.closePort();
-  } catch (provider_imu::Exception &e) {
+  } catch (std::runtime_error &e) {
     fprintf(stderr, "Exception thrown while stopping IMU.\n%s", e.what());
     return 1;
   }

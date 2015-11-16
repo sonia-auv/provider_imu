@@ -168,7 +168,7 @@ int ImuNode::Start() {
   try {
     try {
       imu.openPort(port.c_str());
-    } catch (provider_imu::Exception &e) {
+    } catch (std::runtime_error &e) {
       error_count_++;
       SetErrorStatus(e.what());
       diagnostic_.broadcast(2, e.what());
@@ -200,7 +200,7 @@ int ImuNode::Start() {
 
     running = true;
 
-  } catch (provider_imu::Exception &e) {
+  } catch (std::runtime_error &e) {
     error_count_++;
     usleep(100000);                // Give isShuttingDown a chance to go true.
     if (!ros::isShuttingDown()) {  // Don't warn if we are shutting down.
@@ -257,7 +257,7 @@ int ImuNode::Stop() {
   if (running) {
     try {
       imu.closePort();
-    } catch (provider_imu::Exception &e) {
+    } catch (std::runtime_error &e) {
       error_count_++;
       ROS_INFO("Exception thrown while stopping IMU. %s", e.what());
     }
@@ -315,7 +315,7 @@ int ImuNode::PublishData() {
     // If we got here, then the IMU really is working.
     // Next time an error occurs, we want to print it.
     ClearErrorStatus();
-  } catch (provider_imu::Exception &e) {
+  } catch (std::runtime_error &e) {
     error_count_++;
 
     // Give isShuttingDown a chance to go true.
@@ -377,7 +377,7 @@ void ImuNode::PreTest(diagnostic_updater::DiagnosticStatusWrapper &status) {
     imu.closePort();
 
     status.summary(0, "Device closed successfully.");
-  } catch (provider_imu::Exception &e) {
+  } catch (std::runtime_error &e) {
     status.summary(1, "Failed to close device.");
   }
 }
@@ -644,7 +644,7 @@ bool ImuNode::CalibrateCallback(std_srvs::Empty::Request &req,
       CheckCalibration();
       imu.closePort();
     }
-  } catch (provider_imu::Exception &e) {
+  } catch (std::runtime_error &e) {
     error_count_++;
     calibrated_ = false;
     PublishIsCalibrated();
