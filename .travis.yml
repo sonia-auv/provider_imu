@@ -1,8 +1,6 @@
 # S.O.N.I.A. Continuous Integration Configuration File
 # Author: Thibaut Mattio
 
-# General setup
-# -------------
 language:
   - cpp
   - python
@@ -12,6 +10,7 @@ python:
 
 compiler:
   - gcc
+  - clang
 
 os:
   - linux
@@ -30,15 +29,9 @@ notifications:
     on_success: always
     on_failure: always
 
-# Allow caching of debian (apt-get) packages. This means they're cached
-# on Travis, so we still have to download/install them, but it will be
-# faster than going to the ubuntu repositories.
 cache: apt
-# Before anything, see if we can get the mongoDB troubles out of the way.
-# Note that this is a Travis-CI specific problem; this is not needed in
-# general.
-before_install: # Use this to prepare the system to install prerequisites or dependencies
-  # Define some config vars
+
+before_install:
   - export ROS_DISTRO=indigo
   - export CI_SOURCE_PATH=$(pwd)
   - export REPOSITORY_ORG=sonia-auv
@@ -46,8 +39,6 @@ before_install: # Use this to prepare the system to install prerequisites or dep
   - export ROS_CI_DESKTOP=`lsb_release -cs`
   - export PYTHONPATH='$PYTHONPATH:/opt/ros/indigo/lib/python2.7/dist-packages:/usr/lib/python2.7/dist-packages/'
 
-# Commands to install dependencies
-# --------------------------------
 install:
   # Install ROS
   - echo "Testing branch $TRAVIS_BRANCH of $REPOSITORY_NAME"
@@ -72,9 +63,5 @@ install:
   - cd ~/catkin_ws/
   - rosdep install --from-paths src --ignore-src --rosdistro=${ROS_DISTRO} -y
   # Build
-  - catkin_make
-
-# Command to run tests
-# --------------------
-script:
-  - catkin_make run_tests
+  - catkin_make -j8
+  - catkin_make -j8 -DCMAKE_BUILD_TYPE=Release
