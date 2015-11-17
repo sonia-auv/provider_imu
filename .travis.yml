@@ -10,7 +10,6 @@ python:
 
 compiler:
   - gcc
-  - clang
 
 os:
   - linux
