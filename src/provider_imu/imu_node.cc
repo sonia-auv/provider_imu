@@ -55,7 +55,7 @@ ImuNode::ImuNode(ros::NodeHandle h)
       desired_freq_(100),
       freq_diag_(diagnostic_updater::FrequencyStatusParam(
           &desired_freq_, &desired_freq_, 0.05)) {
-  ros::NodeHandle imu_node_handle(node_handle_, "imu");
+  ros::NodeHandle imu_node_handle(node_handle_, "provider_imu");
 
   private_node_handle_.param("autocalibrate", autocalibrate_, true);
   private_node_handle_.param("assume_calibrated", calibrated_, false);
