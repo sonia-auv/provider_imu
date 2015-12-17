@@ -48,9 +48,13 @@
 #include <diagnostic_updater/diagnostic_updater.h>
 #include <diagnostic_updater/update_functions.h>
 #include <diagnostic_updater/DiagnosticStatusWrapper.h>
-#include <sensor_msgs/Imu.h>
 #include <std_srvs/Empty.h>
 #include <tf/transform_datatypes.h>
+#include <sensor_msgs/Imu.h>
+#include <sensor_msgs/MagneticField.h>
+#include <geometry_msgs/QuaternionStamped.h>
+#include <geometry_msgs/AccelWithCovarianceStamped.h>
+#include <geometry_msgs/TwistWithCovarianceStamped.h>
 #include <std_msgs/Bool.h>
 #include <provider_imu/AddOffset.h>
 #include "imu_driver.h"
@@ -98,9 +102,7 @@ class ImuNode {
 
   void GyroBiasTest(diagnostic_updater::DiagnosticStatusWrapper &status);
 
-  void GetData(sensor_msgs::Imu &data);
-
-  tf::Quaternion GetQuaternion(sensor_msgs::Imu &data);
+  void BuildRosMessages();
 
   void StreamedDataTest(diagnostic_updater::DiagnosticStatusWrapper &status);
 
@@ -130,24 +132,33 @@ class ImuNode {
   /**
    * The driver that handle the communication between this software and the IMU.
    */
-  provider_imu::ImuDriver imu;
+  provider_imu::ImuDriver imu_driver_;
 
   /**
    * ROS Message that contains the IMU informations.
    * This message will be published on the data topic.
    */
-  sensor_msgs::Imu reading;
+  sensor_msgs::Imu imu_msg_;
+  geometry_msgs::AccelWithCovarianceStamped accel_msg_;
+  geometry_msgs::TwistWithCovarianceStamped twist_msg_;
+  sensor_msgs::MagneticField magnetic_field_msg_;
+
+  ros::Publisher imu_pub_;
+  ros::Publisher accel_pub_;
+  ros::Publisher twist_pub_;
+  ros::Publisher magnetic_pub_;
+  ros::Publisher is_calibrated_pub_;
 
   /**
    * The serial port to connect to.
    * This information is being used by the serial driver implementation.
    */
-  std::string port;
+  std::string port_;
 
   /**
    * All possible command that the IMU Node can send to the IMU.
    */
-  provider_imu::ImuDriver::cmd cmd;
+  provider_imu::ImuDriver::cmd cmd_;
 
   self_test::TestRunner self_test_;
 
@@ -157,15 +168,11 @@ class ImuNode {
 
   ros::NodeHandle private_node_handle_;
 
-  ros::Publisher imu_data_pub_;
-
   ros::ServiceServer add_offset_serv_;
 
   ros::ServiceServer calibrate_serv_;
 
-  ros::Publisher is_calibrated_pub_;
-
-  bool running;
+  bool running_;
 
   bool autocalibrate_;
 
