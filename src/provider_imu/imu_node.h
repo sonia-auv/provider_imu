@@ -56,7 +56,7 @@
 #include <geometry_msgs/AccelWithCovarianceStamped.h>
 #include <geometry_msgs/TwistWithCovarianceStamped.h>
 #include <std_msgs/Bool.h>
-#include <provider_imu/AddOffset.h>
+#include <sonia_msgs/AddOffset.h>
 #include "imu_driver.h"
 
 namespace provider_imu {
@@ -117,8 +117,8 @@ class ImuNode {
   void GetCalibrationStatus(
       diagnostic_updater::DiagnosticStatusWrapper &status);
 
-  bool AddOffsetCallback(provider_imu::AddOffset::Request &req,
-                         provider_imu::AddOffset::Response &resp);
+  bool AddOffsetCallback(sonia_msgs::AddOffset::Request &req,
+                          sonia_msgs::AddOffset::Response &resp);
 
   bool CalibrateCallback(std_srvs::Empty::Request &req,
                          std_srvs::Empty::Response &resp);

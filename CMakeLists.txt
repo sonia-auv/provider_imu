@@ -17,14 +17,11 @@ set(provider_imu_SRC_DIR "src")
 
 find_package(catkin REQUIRED COMPONENTS
     roscpp
-    std_srvs
-    std_msgs
-    message_generation
-    sensor_msgs
     self_test
     diagnostic_updater
     tf
     lib_atlas
+    sonia_msgs
     )
 
 find_library(LOG4CXX_LIBRARY log4cxx)
@@ -32,16 +29,11 @@ if (NOT LOG4CXX_LIBRARY)
   message(FATAL_ERROR "Couldn't find log4cxx library")
 endif ()
 
-add_service_files(DIRECTORY srv FILES AddOffset.srv)
-
-## Generate added messages and services with any dependencies listed here
-generate_messages(DEPENDENCIES std_msgs)
-
 # Declare this project as a catkin package and export the necessary build flags
 catkin_package(
     INCLUDE_DIRS ${provider_imu_SRC_DIR}
     LIBRARIES
-    CATKIN_DEPENDS message_runtime roscpp sensor_msgs self_test diagnostic_updater tf std_srvs std_msgs lib_atlas
+    CATKIN_DEPENDS roscpp self_test diagnostic_updater tf sonia_msgs
 )
 
 #===============================================================================

@@ -599,8 +599,8 @@ void ImuNode::GetCalibrationStatus(
 
 //------------------------------------------------------------------------------
 //
-bool ImuNode::AddOffsetCallback(provider_imu::AddOffset::Request &req,
-                                provider_imu::AddOffset::Response &resp) {
+bool ImuNode::AddOffsetCallback(sonia_msgs::AddOffset::Request &req,
+                                sonia_msgs::AddOffset::Response &resp) {
   double offset = req.add_offset;
   offset_ += offset;
 
