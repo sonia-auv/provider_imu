@@ -1,8 +1,5 @@
 <launch>
-
-<!-- imu -->
-
-  <node pkg="provider_imu" type="provider_imu_node" name="provider_imu_node" output="screen">
+  <node pkg="provider_imu" type="provider_imu_node" name="provider_imu_node" output="log" launch-prefix="gdb -ex run --args">
     <param name="time_offset" value="-0.040" />
     <param name="port"  type="string" value="/dev/ttyACM0" />
     <param name="autostart" type="bool" value="true" />
@@ -10,5 +7,4 @@
     <param name="autocalibrate" type="bool" value="false" />
     <param name="angular_velocity_stdev" type="double" value="0.00017" />
   </node>
-
 </launch>
