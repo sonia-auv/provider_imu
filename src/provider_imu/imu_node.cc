@@ -57,9 +57,9 @@ ImuNode::ImuNode(ros::NodeHandle h)
           &desired_freq_, &desired_freq_, 0.05)) {
   ros::NodeHandle imu_node_handle(node_handle_, "provider_imu");
 
-  private_node_handle_.param("autocalibrate", autocalibrate_, true);
+  private_node_handle_.param("autocalibrate", autocalibrate_, false);
   private_node_handle_.param("assume_calibrated", calibrated_, false);
-  private_node_handle_.param("port", port_, std::string("/dev/ttyUSB0"));
+  private_node_handle_.param("port", port_, std::string("/dev/ttyACM0"));
   private_node_handle_.param("max_drift_rate", max_drift_rate_, 0.0002);
 
   imu_pub_ = imu_node_handle.advertise<sensor_msgs::Imu>("imu", 100);
@@ -76,7 +76,7 @@ ImuNode::ImuNode(ros::NodeHandle h)
 
   PublishIsCalibrated();
 
-  cmd_ = provider_imu::ImuDriver::CMD_ACCEL_ANGRATE_ORIENT;
+  cmd_ = provider_imu::ImuDriver::CMD_ACCEL_ANGRATE_MAG_ORIENT;
 
   running_ = false;
 
@@ -212,7 +212,7 @@ int ImuNode::Start() {
 
   } catch (std::runtime_error &e) {
     error_count_++;
-    usleep(1000000);                // Give isShuttingDown a chance to go true.
+    usleep(100000);                // Give isShuttingDown a chance to go true.
     if (!ros::isShuttingDown()) {  // Don't warn if we are shutting down.
       SetErrorStatusF(
           "Exception thrown while starting IMU. This sometimes happens if "
@@ -283,7 +283,7 @@ int ImuNode::PublishData() {
   try {
     static double prevtime = 0;
     double starttime = ros::Time::now().toSec();
-    if (prevtime && prevtime - starttime > 0.01) {
+    if (prevtime && prevtime - starttime > 0.05) {
       ROS_WARN("Full IMU loop took %f ms. Nominal is 10ms.",
                1000 * (prevtime - starttime));
       was_slow_ = "Full IMU loop was slow.";
@@ -291,7 +291,7 @@ int ImuNode::PublishData() {
     }
     BuildRosMessages();
     double endtime = ros::Time::now().toSec();
-    if (endtime - starttime > 0.01) {
+    if (endtime - starttime > 0.05) {
       ROS_WARN("Gathering data took %f ms. Nominal is 10ms.",
                1000 * (endtime - starttime));
       was_slow_ = "Full IMU loop was slow.";
@@ -306,7 +306,7 @@ int ImuNode::PublishData() {
     magnetic_pub_.publish(magnetic_field_msg_);
 
     endtime = ros::Time::now().toSec();
-    if (endtime - starttime > 0.01) {
+    if (endtime - starttime > 0.05) {
       ROS_WARN("Publishing took %f ms. Nominal is 10 ms.",
                1000 * (endtime - starttime));
       was_slow_ = "Full IMU loop was slow.";
@@ -322,7 +322,7 @@ int ImuNode::PublishData() {
     error_count_++;
 
     // Give isShuttingDown a chance to go true.
-    usleep(10000);
+    usleep(100000);
     if (!ros::isShuttingDown()) {
       // Don't warn if we are shutting down.
       ROS_WARN(

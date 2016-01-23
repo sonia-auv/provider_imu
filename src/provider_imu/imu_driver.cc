@@ -226,7 +226,7 @@ void ImuDriver::InitGyros(double *bias_x, double *bias_y, double *bias_z) {
   uint8_t rep[19];
 
   cmd[0] = CMD_CAPTURE_GYRO_BIAS;
-  cmd[1] = 0xC1;
+  cmd[1] = CMD_ACCEL_ANGRATE_MAG_ORIENT;
   cmd[2] = 0x29;
   *(unsigned short *)(&cmd[3]) = details::bswap_16(10000);
 
@@ -658,7 +658,9 @@ int ImuDriver::Receive(uint8_t command, void *rep, int rep_len, int timeout,
     nbytes =
         read_with_timeout(file_descriptor_, (uint8_t *)rep + bytes, rep_len - bytes, timeout);
 
-    if (nbytes < 0) ATLAS_THROW(std::runtime_error, atlas::Format("read failed  [{0}]", strerror(errno)));
+    if (nbytes < 0) {
+      ATLAS_THROW(std::runtime_error, atlas::Format("read failed  [{0}]", strerror(errno)));
+    }
 
     bytes += nbytes;
   }
@@ -671,7 +673,8 @@ int ImuDriver::Receive(uint8_t command, void *rep, int rep_len, int timeout,
   }
 
   // If wrong throw std::runtime_error
-  if (checksum != details::bswap_16(*(uint16_t *)((uint8_t *)rep + rep_len - 2)))
+  uint16_t correct_cks = details::bswap_16(*(uint16_t *)((uint8_t *)rep + rep_len - 2));
+  if (checksum != correct_cks)
     ATLAS_THROW(atlas::CorruptedDataException,
                "invalid checksum.\n Make sure the IMU sensor is connected to "
                "this computer.");
