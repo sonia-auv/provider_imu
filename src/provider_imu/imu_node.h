@@ -118,7 +118,7 @@ class ImuNode {
       diagnostic_updater::DiagnosticStatusWrapper &status);
 
   bool AddOffsetCallback(sonia_msgs::AddOffset::Request &req,
-                          sonia_msgs::AddOffset::Response &resp);
+                         sonia_msgs::AddOffset::Response &resp);
 
   bool CalibrateCallback(std_srvs::Empty::Request &req,
                          std_srvs::Empty::Response &resp);

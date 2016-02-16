@@ -55,10 +55,10 @@ static inline unsigned int bswap_32(unsigned int x) {
 static float extract_float(uint8_t *addr) {
   float tmp;
 
-  *((unsigned char *) (&tmp) + 3) = *(addr);
-  *((unsigned char *) (&tmp) + 2) = *(addr + 1);
-  *((unsigned char *) (&tmp) + 1) = *(addr + 2);
-  *((unsigned char *) (&tmp)) = *(addr + 3);
+  *((unsigned char *)(&tmp) + 3) = *(addr);
+  *((unsigned char *)(&tmp) + 2) = *(addr + 1);
+  *((unsigned char *)(&tmp) + 1) = *(addr + 2);
+  *((unsigned char *)(&tmp)) = *(addr + 3);
 
   return tmp;
 }
@@ -73,12 +73,12 @@ static unsigned long long time_helper() {
 #else
   struct timeval timeofday;
   gettimeofday(&timeofday, NULL);
-  return (unsigned long long) (timeofday.tv_sec) * 1000000000 +
-      (unsigned long long) (timeofday.tv_usec) * 1000;
+  return (unsigned long long)(timeofday.tv_sec) * 1000000000 +
+         (unsigned long long)(timeofday.tv_usec) * 1000;
 #endif
 }
 
-} // namespace details
+}  // namespace details
 
 // Some systems (e.g., OS X) require explicit externing of static class
 // members.
@@ -91,7 +91,8 @@ extern constexpr double ImuDriver::KF_K_2;
 
 //------------------------------------------------------------------------------
 //
-ImuDriver::ImuDriver() : file_descriptor_(-1), continuous_(false), is_gx3_(false) {}
+ImuDriver::ImuDriver()
+    : file_descriptor_(-1), continuous_(false), is_gx3_(false) {}
 
 //------------------------------------------------------------------------------
 //
@@ -123,8 +124,9 @@ void ImuDriver::OpenPort(const char *port_name) {
         break;
     }
 
-    ATLAS_THROW(std::runtime_error, atlas::Format("Unable to open serial port [{0}]. {1}. {2}", port_name,
-               strerror(errno), extra_msg));
+    ATLAS_THROW(std::runtime_error,
+                atlas::Format("Unable to open serial port [{0}]. {1}. {2}",
+                              port_name, strerror(errno), extra_msg));
   }
 
   // Lock the port
@@ -136,28 +138,34 @@ void ImuDriver::OpenPort(const char *port_name) {
   fl.l_pid = getpid();
 
   if (fcntl(file_descriptor_, F_SETLK, &fl) != 0)
-    ATLAS_THROW(std::runtime_error,
-                atlas::Format("Device {0} is already locked. Try 'lsof | grep {1}' to find "
-               "other processes that currently have the port open.",
-               port_name, port_name));
+    ATLAS_THROW(
+        std::runtime_error,
+        atlas::Format(
+            "Device {0} is already locked. Try 'lsof | grep {1}' to find "
+            "other processes that currently have the port open.",
+            port_name, port_name));
 
   // Change port settings
   struct termios term;
   if (tcgetattr(file_descriptor_, &term) < 0)
-    ATLAS_THROW(std::runtime_error,
-                atlas::Format("Unable to get serial port attributes. The port you specified "
-               "({0}) may not be a serial port.",
-               port_name));
+    ATLAS_THROW(
+        std::runtime_error,
+        atlas::Format(
+            "Unable to get serial port attributes. The port you specified "
+            "({0}) may not be a serial port.",
+            port_name));
 
   cfmakeraw(&term);
   cfsetispeed(&term, B115200);
   cfsetospeed(&term, B115200);
 
   if (tcsetattr(file_descriptor_, TCSAFLUSH, &term) < 0)
-    ATLAS_THROW(std::runtime_error,
-                atlas::Format("Unable to set serial port attributes. The port you specified "
-               "({0}) may not be a serial port.",
-               port_name));  /// @todo tcsetattr returns true if at least one
+    ATLAS_THROW(
+        std::runtime_error,
+        atlas::Format(
+            "Unable to set serial port attributes. The port you specified "
+            "({0}) may not be a serial port.",
+            port_name));  /// @todo tcsetattr returns true if at least one
   /// attribute was set. Hence, we might not have set
   /// everything on success.
 
@@ -167,7 +175,7 @@ void ImuDriver::OpenPort(const char *port_name) {
   // Make sure queues are empty before we begin
   if (tcflush(file_descriptor_, TCIOFLUSH) != 0)
     ATLAS_THROW(std::runtime_error,
-               "Tcflush failed. Please report this error if you see it.");
+                "Tcflush failed. Please report this error if you see it.");
 }
 
 //------------------------------------------------------------------------------
@@ -185,8 +193,9 @@ void ImuDriver::ClosePort() {
     }
 
     if (close(file_descriptor_) != 0)
-      ATLAS_THROW(std::runtime_error, atlas::Format("Unable to close serial port; [{0}]",
-                 strerror(errno)));
+      ATLAS_THROW(
+          std::runtime_error,
+          atlas::Format("Unable to close serial port; [{0}]", strerror(errno)));
     file_descriptor_ = -1;
   }
 }
@@ -468,10 +477,8 @@ bool ImuDriver::GetDeviceIdentifierString(id_string type, char *id) {
 
 //------------------------------------------------------------------------------
 //
-void ImuDriver::ReceiveAccelAngrateMagOrientation(uint64_t *time,
-                                                  double *accel,
-                                                  double *angrate,
-                                                  double *mag,
+void ImuDriver::ReceiveAccelAngrateMagOrientation(uint64_t *time, double *accel,
+                                                  double *angrate, double *mag,
                                                   double *orientation) {
   uint8_t rep[CMD_ACCEL_ANGRATE_MAG_ORIENT_REP_LEN];
 
@@ -554,7 +561,7 @@ uint64_t ImuDriver::ExtractTime(uint8_t *addr) {
 
   last_ticks_ = ticks;
 
-  uint64_t all_ticks = ((uint64_t) wraps_ << 32) - offset_ticks_ + ticks;
+  uint64_t all_ticks = ((uint64_t)wraps_ << 32) - offset_ticks_ + ticks;
 
   return start_time_ +
          (is_gx3_
@@ -569,7 +576,7 @@ int ImuDriver::Transact(void *cmd, int cmd_len, void *rep, int rep_len,
                         int timeout) {
   Send(cmd, cmd_len);
 
-  return Receive(*(uint8_t *) cmd, rep, rep_len, timeout);
+  return Receive(*(uint8_t *)cmd, rep, rep_len, timeout);
 }
 
 //------------------------------------------------------------------------------
@@ -580,7 +587,8 @@ int ImuDriver::Send(void *cmd, int cmd_len) {
   // Write the data to the port
   bytes = write(file_descriptor_, cmd, cmd_len);
   if (bytes < 0) {
-    ATLAS_THROW(std::runtime_error, atlas::Format("error writing to IMU [{0}]", strerror(errno)));
+    ATLAS_THROW(std::runtime_error,
+                atlas::Format("error writing to IMU [{0}]", strerror(errno)));
   }
 
   if (bytes != cmd_len) {
@@ -611,7 +619,8 @@ static int read_with_timeout(int fd, void *buff, size_t count, int timeout) {
   // timeout. For poll, negative means no timeout.
 
   if ((retval = poll(ufd, 1, timeout)) < 0) {
-    ATLAS_THROW(std::runtime_error, atlas::Format("poll failed  [{0}]", strerror(errno)));
+    ATLAS_THROW(std::runtime_error,
+                atlas::Format("poll failed  [{0}]", strerror(errno)));
   }
 
   if (retval == 0) {
@@ -621,7 +630,8 @@ static int read_with_timeout(int fd, void *buff, size_t count, int timeout) {
   nbytes = read(fd, (uint8_t *)buff, count);
 
   if (nbytes < 0) {
-    ATLAS_THROW(std::runtime_error, atlas::Format("read failed  [{0}]", strerror(errno)));
+    ATLAS_THROW(std::runtime_error,
+                atlas::Format("read failed  [{0}]", strerror(errno)));
   }
 
   return nbytes;
@@ -655,11 +665,12 @@ int ImuDriver::Receive(uint8_t command, void *rep, int rep_len, int timeout,
 
   // Read the rest of the message:
   while (bytes < rep_len) {
-    nbytes =
-        read_with_timeout(file_descriptor_, (uint8_t *)rep + bytes, rep_len - bytes, timeout);
+    nbytes = read_with_timeout(file_descriptor_, (uint8_t *)rep + bytes,
+                               rep_len - bytes, timeout);
 
     if (nbytes < 0) {
-      ATLAS_THROW(std::runtime_error, atlas::Format("read failed  [{0}]", strerror(errno)));
+      ATLAS_THROW(std::runtime_error,
+                  atlas::Format("read failed  [{0}]", strerror(errno)));
     }
 
     bytes += nbytes;
@@ -673,11 +684,12 @@ int ImuDriver::Receive(uint8_t command, void *rep, int rep_len, int timeout,
   }
 
   // If wrong throw std::runtime_error
-  uint16_t correct_cks = details::bswap_16(*(uint16_t *)((uint8_t *)rep + rep_len - 2));
+  uint16_t correct_cks =
+      details::bswap_16(*(uint16_t *)((uint8_t *)rep + rep_len - 2));
   if (checksum != correct_cks)
     ATLAS_THROW(atlas::CorruptedDataException,
-               "invalid checksum.\n Make sure the IMU sensor is connected to "
-               "this computer.");
+                "invalid checksum.\n Make sure the IMU sensor is connected to "
+                "this computer.");
 
   return bytes;
 }
@@ -749,10 +761,10 @@ std::string ImuDriver::GetFirmware() {
 
   if (rep[0] != CMD_FIRMWARE_VERSION) {
     ATLAS_THROW(std::runtime_error, "Wrong command receive from the IMU");
-  } else if (checksum !=
-             details::bswap_16(*(uint16_t *)((uint8_t *)rep + sizeof(rep) - 2))) {
+  } else if (checksum != details::bswap_16(
+                             *(uint16_t *)((uint8_t *)rep + sizeof(rep) - 2))) {
     ATLAS_THROW(atlas::CorruptedDataException,
-               "invalid checksum.\n Something went wrong.");
+                "invalid checksum.\n Something went wrong.");
   } else {
     version = rep[1];
     version = version << 8;

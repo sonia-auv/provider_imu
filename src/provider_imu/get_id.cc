@@ -73,11 +73,10 @@ std::string GetID(provider_imu::ImuDriver &imu) {
   }
 
   return (boost::format("%s_%s-%s") % dev_name_ptr % dev_model_num_ptr %
-      dev_serial_num_ptr)
-      .str();
+          dev_serial_num_ptr).str();
 }
 
-} // namespace provider_imu
+}  // namespace provider_imu
 
 int main(int argc, char **argv) {
   if (argc < 2 || argc > 3) {

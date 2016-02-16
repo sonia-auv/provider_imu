@@ -205,8 +205,8 @@ class ImuDriver {
    * \param angrate array of angular rates which will be filled
    * \param mag     array of magnetometer orientations which will be filled
    */
-  void ReceiveAccelAngrateMag(uint64_t *time, double *accel,
-                              double *angrate, double *mag);
+  void ReceiveAccelAngrateMag(uint64_t *time, double *accel, double *angrate,
+                              double *mag);
 
   //! Read a message of type "EULER"
   /**
@@ -245,8 +245,7 @@ class ImuDriver {
    * \param accel   array of accelerations which will be filled
    * \param angrate array of angular rates which will be filled
    */
-  void ReceiveRawAccelAngrate(uint64_t *time, double *accel,
-                              double *angrate);
+  void ReceiveRawAccelAngrate(uint64_t *time, double *accel, double *angrate);
 
   //! Set the fixed time offset
   /**

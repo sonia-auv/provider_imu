@@ -57,15 +57,24 @@ ImuNode::ImuNode(ros::NodeHandle h)
           &desired_freq_, &desired_freq_, 0.05)) {
   ros::NodeHandle imu_node_handle(node_handle_, "provider_imu");
 
-  private_node_handle_.param("autocalibrate", autocalibrate_, false);
-  private_node_handle_.param("assume_calibrated", calibrated_, false);
-  private_node_handle_.param("port", port_, std::string("/dev/ttyACM0"));
-  private_node_handle_.param("max_drift_rate", max_drift_rate_, 0.0002);
+  private_node_handle_.param("provider_imu/driver/autocalibrate",
+                             autocalibrate_, false);
+  private_node_handle_.param("provider_imu/driver/assume_calibrated",
+                             calibrated_, false);
+  private_node_handle_.param("provider_imu/driver/port", port_,
+                             std::string("/dev/ttyACM0"));
+  private_node_handle_.param("provider_imu/imu/max_drift_rate", max_drift_rate_,
+                             0.0002);
 
   imu_pub_ = imu_node_handle.advertise<sensor_msgs::Imu>("imu", 100);
-  accel_pub_ = imu_node_handle.advertise<geometry_msgs::AccelWithCovarianceStamped>("acceleration", 100);
-  twist_pub_ = imu_node_handle.advertise<geometry_msgs::TwistWithCovarianceStamped>("twist", 100);
-  magnetic_pub_ = imu_node_handle.advertise<sensor_msgs::MagneticField>("magnetic_field", 100);
+  accel_pub_ =
+      imu_node_handle.advertise<geometry_msgs::AccelWithCovarianceStamped>(
+          "acceleration", 100);
+  twist_pub_ =
+      imu_node_handle.advertise<geometry_msgs::TwistWithCovarianceStamped>(
+          "twist", 100);
+  magnetic_pub_ = imu_node_handle.advertise<sensor_msgs::MagneticField>(
+      "magnetic_field", 100);
 
   add_offset_serv_ = private_node_handle_.advertiseService(
       "add_offset", &ImuNode::AddOffsetCallback, this);
@@ -82,16 +91,18 @@ ImuNode::ImuNode(ros::NodeHandle h)
 
   bias_x_ = bias_y_ = bias_z_ = 0;
 
-  private_node_handle_.param("driver/frame_id", frameid_, std::string("imu"));
+  private_node_handle_.param("provider_imu/driver/frame_id", frameid_,
+                             std::string("imu"));
   imu_msg_.header.frame_id = frameid_;
 
-  private_node_handle_.param("driver/time_offset", offset_, 0.0);
+  private_node_handle_.param("provider_imu/driver/time_offset", offset_, 0.0);
 
-  private_node_handle_.param("imu/linear_acceleration_stdev",
+  private_node_handle_.param("provider_imu/imu/linear_acceleration_stdev",
                              linear_acceleration_stdev_, 0.098);
-  private_node_handle_.param("imu/orientation_stdev", orientation_stdev_, 0.035);
-  private_node_handle_.param("imu/angular_velocity_stdev", angular_velocity_stdev_,
-                             0.012);
+  private_node_handle_.param("provider_imu/imu/orientation_stdev",
+                             orientation_stdev_, 0.035);
+  private_node_handle_.param("provider_imu/imu/angular_velocity_stdev",
+                             angular_velocity_stdev_, 0.012);
 
   angular_velocity_covariance_ =
       angular_velocity_stdev_ * angular_velocity_stdev_;
@@ -156,12 +167,12 @@ void ImuNode::SetErrorStatus(const std::string msg) {
     error_status_ = msg;
     ROS_ERROR(
         "%s You may find further details at "
-            "http://www.ros.org/wiki/microstrain_3dmgx2_imu/Troubleshooting",
+        "http://www.ros.org/wiki/microstrain_3dmgx2_imu/Troubleshooting",
         msg.c_str());
   } else {
     ROS_DEBUG(
         "%s You may find further details at "
-            "http://www.ros.org/wiki/microstrain_3dmgx2_imu/Troubleshooting",
+        "http://www.ros.org/wiki/microstrain_3dmgx2_imu/Troubleshooting",
         msg.c_str());
   }
 }
@@ -199,7 +210,7 @@ int ImuNode::Start() {
     } else {
       ROS_INFO(
           "Not calibrating the IMU sensor. Use the calibrate service to "
-              "calibrate it before use.");
+          "calibrate it before use.");
     }
 
     ROS_INFO("IMU sensor initialized.");
@@ -216,9 +227,9 @@ int ImuNode::Start() {
     if (!ros::isShuttingDown()) {  // Don't warn if we are shutting down.
       SetErrorStatusF(
           "Exception thrown while starting IMU. This sometimes happens if "
-              "you are not connected to an IMU or if another process is trying "
-              "to access the IMU port. You may try 'lsof|grep %s' to see if "
-              "other processes have the port open. %s",
+          "you are not connected to an IMU or if another process is trying "
+          "to access the IMU port. You may try 'lsof|grep %s' to see if "
+          "other processes have the port open. %s",
           port_.c_str(), e.what());
       diagnostic_.broadcast(2, "Error opening IMU.");
     }
@@ -237,12 +248,12 @@ std::string ImuNode::getID(bool output_info) {
   char dev_opt[17];
   imu_driver_.GetDeviceIdentifierString(provider_imu::ImuDriver::ID_DEVICE_NAME,
                                         dev_name);
-  imu_driver_.GetDeviceIdentifierString(provider_imu::ImuDriver::ID_MODEL_NUMBER,
-                                        dev_model_num);
-  imu_driver_.GetDeviceIdentifierString(provider_imu::ImuDriver::ID_SERIAL_NUMBER,
-                                        dev_serial_num);
-  imu_driver_.GetDeviceIdentifierString(provider_imu::ImuDriver::ID_DEVICE_OPTIONS,
-                                        dev_opt);
+  imu_driver_.GetDeviceIdentifierString(
+      provider_imu::ImuDriver::ID_MODEL_NUMBER, dev_model_num);
+  imu_driver_.GetDeviceIdentifierString(
+      provider_imu::ImuDriver::ID_SERIAL_NUMBER, dev_serial_num);
+  imu_driver_.GetDeviceIdentifierString(
+      provider_imu::ImuDriver::ID_DEVICE_OPTIONS, dev_opt);
 
   if (output_info)
     ROS_INFO("Connected to IMU [%s] model [%s] s/n [%s] options [%s]", dev_name,
@@ -257,8 +268,7 @@ std::string ImuNode::getID(bool output_info) {
   while (*dev_serial_num_ptr == ' ') dev_serial_num_ptr++;
 
   return (boost::format("%s_%s-%s") % dev_name_ptr % dev_model_num_ptr %
-      dev_serial_num_ptr)
-      .str();
+          dev_serial_num_ptr).str();
 }
 
 //------------------------------------------------------------------------------
@@ -327,9 +337,9 @@ int ImuNode::PublishData() {
       // Don't warn if we are shutting down.
       ROS_WARN(
           "Exception thrown while trying to get the IMU reading. This "
-              "sometimes happens due to a communication glitch, or if another "
-              "process is trying to access the IMU port. You may try 'lsof|grep "
-              "%s' to see if other processes have the port open. %s",
+          "sometimes happens due to a communication glitch, or if another "
+          "process is trying to access the IMU port. You may try 'lsof|grep "
+          "%s' to see if other processes have the port open. %s",
           port_.c_str(), e.what());
     }
     return -1;
@@ -394,7 +404,7 @@ void ImuNode::InterruptionTest(
   else
     status.summary(1,
                    "There were active subscribers.  Running of self test "
-                       "interrupted operations.");
+                   "interrupted operations.");
 }
 
 //------------------------------------------------------------------------------
@@ -435,7 +445,8 @@ void ImuNode::BuildRosMessages() {
   double mag[3];
   double orientation[9];
 
-  imu_driver_.ReceiveAccelAngrateMagOrientation(&time, accel, angrate, mag, orientation);
+  imu_driver_.ReceiveAccelAngrateMagOrientation(&time, accel, angrate, mag,
+                                                orientation);
 
   imu_msg_.linear_acceleration.x = accel[0];
   imu_msg_.linear_acceleration.y = accel[1];
@@ -455,10 +466,9 @@ void ImuNode::BuildRosMessages() {
 
   tf::Quaternion quat;
   (tf::Matrix3x3(-1, 0, 0, 0, 1, 0, 0, 0, -1) *
-      tf::Matrix3x3(orientation[0], orientation[3], orientation[6], orientation[1],
-                    orientation[4], orientation[7], orientation[2], orientation[5],
-                    orientation[8]))
-      .getRotation(quat);
+   tf::Matrix3x3(orientation[0], orientation[3], orientation[6], orientation[1],
+                 orientation[4], orientation[7], orientation[2], orientation[5],
+                 orientation[8])).getRotation(quat);
 
   tf::quaternionTFToMsg(quat, imu_msg_.orientation);
 
@@ -521,9 +531,9 @@ void ImuNode::GravityTest(diagnostic_updater::DiagnosticStatusWrapper &status) {
 
     imu_driver_.StopContinuous();
 
-    grav += sqrt(pow(grav_x / (double) (num), 2.0) +
-        pow(grav_y / (double) (num), 2.0) +
-        pow(grav_z / (double) (num), 2.0));
+    grav += sqrt(pow(grav_x / (double)(num), 2.0) +
+                 pow(grav_y / (double)(num), 2.0) +
+                 pow(grav_z / (double)(num), 2.0));
 
     // double err = (grav - microstrain_3dmgx2_imu::G);
     double err = (grav - 9.796);
@@ -658,7 +668,8 @@ void ImuNode::CheckCalibration() {  // Expects to be called with the IMU
   imu_driver_.InitGyros(&bias_x_, &bias_y_, &bias_z_);
 
   // check calibration
-  if (!imu_driver_.SetContinuous(provider_imu::ImuDriver::CMD_ACCEL_ANGRATE_ORIENT)) {
+  if (!imu_driver_.SetContinuous(
+          provider_imu::ImuDriver::CMD_ACCEL_ANGRATE_ORIENT)) {
     ROS_ERROR("Could not start streaming data to verify calibration");
   } else {
     double x_rate = 0.0;
@@ -687,7 +698,7 @@ void ImuNode::CheckCalibration() {  // Expects to be called with the IMU
     if (average_rate < max_drift_rate_) {
       ROS_INFO(
           "Imu: calibration check succeeded: average angular drift %f "
-              "mdeg/sec < %f mdeg/sec",
+          "mdeg/sec < %f mdeg/sec",
           average_rate * 180 * 1000 / M_PI,
           max_drift_rate_ * 180 * 1000 / M_PI);
       calibrated_ = true;
@@ -695,13 +706,13 @@ void ImuNode::CheckCalibration() {  // Expects to be called with the IMU
       ROS_INFO("IMU gyro calibration completed.");
       freq_diag_.clear();
     }
-      // calibration failed
+    // calibration failed
     else {
       calibrated_ = false;
       PublishIsCalibrated();
       ROS_ERROR(
           "Imu: calibration check failed: average angular drift = %f "
-              "mdeg/sec > %f mdeg/sec",
+          "mdeg/sec > %f mdeg/sec",
           average_rate * 180 * 1000 / M_PI,
           max_drift_rate_ * 180 * 1000 / M_PI);
     }
@@ -709,4 +720,4 @@ void ImuNode::CheckCalibration() {  // Expects to be called with the IMU
   }
 }
 
-} //namespace provider_imu
+}  // namespace provider_imu
