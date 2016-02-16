@@ -1,0 +1,13 @@
+#********** Driver Parameters ************
+
+driver/port: "/dev/ttyACM0"
+driver/time_offset: -0.040
+driver/autostart: true
+driver/frame_id: "imu"
+driver/autocalibrate: false
+
+#********** IMU Parameters ************
+
+imu/angular_velocity_stdev: 0.00017
+imu/linear_acceleration_stdev: 0.098
+imu/orientation_stdev: 0.035

@@ -82,15 +82,15 @@ ImuNode::ImuNode(ros::NodeHandle h)
 
   bias_x_ = bias_y_ = bias_z_ = 0;
 
-  private_node_handle_.param("frame_id", frameid_, std::string("imu"));
+  private_node_handle_.param("driver/frame_id", frameid_, std::string("imu"));
   imu_msg_.header.frame_id = frameid_;
 
-  private_node_handle_.param("time_offset", offset_, 0.0);
+  private_node_handle_.param("driver/time_offset", offset_, 0.0);
 
-  private_node_handle_.param("linear_acceleration_stdev",
+  private_node_handle_.param("imu/linear_acceleration_stdev",
                              linear_acceleration_stdev_, 0.098);
-  private_node_handle_.param("orientation_stdev", orientation_stdev_, 0.035);
-  private_node_handle_.param("angular_velocity_stdev", angular_velocity_stdev_,
+  private_node_handle_.param("imu/orientation_stdev", orientation_stdev_, 0.035);
+  private_node_handle_.param("imu/angular_velocity_stdev", angular_velocity_stdev_,
                              0.012);
 
   angular_velocity_covariance_ =
