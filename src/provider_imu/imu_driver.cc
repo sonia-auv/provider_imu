@@ -645,9 +645,9 @@ int ImuDriver::Receive(uint8_t command, void *rep, int rep_len, int timeout,
 
   skippedbytes = 0;
 
-  struct pollfd ufd[1];
-  ufd[0].fd = file_descriptor_;
-  ufd[0].events = POLLIN;
+//  struct pollfd ufd[1];
+//  ufd[0].fd = file_descriptor_;
+//  ufd[0].events = POLLIN;
 
   // Skip everything until we find our "header"
   *(uint8_t *)(rep) = 0;
@@ -755,7 +755,7 @@ std::string ImuDriver::GetFirmware() {
   Transact(cmd, sizeof(cmd), rep, sizeof(rep), 100);
 
   uint16_t checksum = 0;
-  for (int i = 0; i < sizeof(rep) - 2; i++) {
+  for (size_t i = 0; i < sizeof(rep) - 2; i++) {
     checksum += ((uint8_t *)rep)[i];
   }
 

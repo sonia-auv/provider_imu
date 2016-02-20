@@ -11,7 +11,7 @@
 #include "imu_driver.h"
 
 int main(int argc, char **argv) {
-  if (argv[2] != "reset") {
+  if (std::string(argv[2]).compare("reset") != 0) {
     ROS_WARN(
         "You are about to reset the imu software! Usage:  imu_reset "
         "/dev/ttyUSB? reset.");
