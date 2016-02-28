@@ -58,6 +58,7 @@ install:
   - catkin_init_workspace
   # Cloning dependencies
   - git clone https://github.com/sonia-auv/lib_atlas.git -b develop
+  - git clone https://github.com/sonia-auv/sonia_msgs.git -b develop
   # Install dependencies
   - cd ~/catkin_ws/
   - rosdep install --from-paths src --ignore-src --rosdistro=${ROS_DISTRO} -y
