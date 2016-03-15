@@ -21,9 +21,9 @@
 #ifndef PROVIDER_IMU_IMU_DRIVER_H_
 #define PROVIDER_IMU_IMU_DRIVER_H_
 
+#include <stdint.h>
 #include <fstream>
 #include <stdexcept>
-#include <stdint.h>
 
 namespace provider_imu {
 

@@ -31,11 +31,11 @@
  *  POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <string>
 #include <boost/format.hpp>
-#include "ros/console.h"
+#include <string>
 #include "imu_driver.h"
 #include "log4cxx/logger.h"
+#include "ros/console.h"
 
 namespace provider_imu {
 
@@ -73,7 +73,8 @@ std::string GetID(provider_imu::ImuDriver &imu) {
   }
 
   return (boost::format("%s_%s-%s") % dev_name_ptr % dev_model_num_ptr %
-          dev_serial_num_ptr).str();
+          dev_serial_num_ptr)
+      .str();
 }
 
 }  // namespace provider_imu

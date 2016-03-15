@@ -268,7 +268,8 @@ std::string ImuNode::getID(bool output_info) {
   while (*dev_serial_num_ptr == ' ') dev_serial_num_ptr++;
 
   return (boost::format("%s_%s-%s") % dev_name_ptr % dev_model_num_ptr %
-          dev_serial_num_ptr).str();
+          dev_serial_num_ptr)
+      .str();
 }
 
 //------------------------------------------------------------------------------
@@ -468,7 +469,8 @@ void ImuNode::BuildRosMessages() {
   (tf::Matrix3x3(-1, 0, 0, 0, 1, 0, 0, 0, -1) *
    tf::Matrix3x3(orientation[0], orientation[3], orientation[6], orientation[1],
                  orientation[4], orientation[7], orientation[2], orientation[5],
-                 orientation[8])).getRotation(quat);
+                 orientation[8]))
+      .getRotation(quat);
 
   tf::quaternionTFToMsg(quat, imu_msg_.orientation);
 

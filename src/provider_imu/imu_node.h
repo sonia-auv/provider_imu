@@ -39,24 +39,24 @@
 #define PROVIDER_IMU_IMU_NODE_H_
 
 #include <assert.h>
-#include <math.h>
-#include <iostream>
-#include <boost/format.hpp>
-#include <ros/time.h>
-#include <self_test/self_test.h>
 #include <diagnostic_msgs/DiagnosticStatus.h>
+#include <diagnostic_updater/DiagnosticStatusWrapper.h>
 #include <diagnostic_updater/diagnostic_updater.h>
 #include <diagnostic_updater/update_functions.h>
-#include <diagnostic_updater/DiagnosticStatusWrapper.h>
-#include <std_srvs/Empty.h>
-#include <tf/transform_datatypes.h>
+#include <geometry_msgs/AccelWithCovarianceStamped.h>
+#include <geometry_msgs/QuaternionStamped.h>
+#include <geometry_msgs/TwistWithCovarianceStamped.h>
+#include <math.h>
+#include <ros/time.h>
+#include <self_test/self_test.h>
 #include <sensor_msgs/Imu.h>
 #include <sensor_msgs/MagneticField.h>
-#include <geometry_msgs/QuaternionStamped.h>
-#include <geometry_msgs/AccelWithCovarianceStamped.h>
-#include <geometry_msgs/TwistWithCovarianceStamped.h>
-#include <std_msgs/Bool.h>
 #include <sonia_msgs/AddOffset.h>
+#include <std_msgs/Bool.h>
+#include <std_srvs/Empty.h>
+#include <tf/transform_datatypes.h>
+#include <boost/format.hpp>
+#include <iostream>
 #include "imu_driver.h"
 
 namespace provider_imu {

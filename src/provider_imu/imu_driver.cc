@@ -18,21 +18,21 @@
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
+#include "imu_driver.h"
 #include <errno.h>
 #include <fcntl.h>
+#include <lib_atlas/exceptions.h>
+#include <lib_atlas/io/formatter.h>
+#include <lib_atlas/macros.h>
 #include <math.h>
+#include <netinet/in.h>
 #include <string.h>
+#include <sys/time.h>
 #include <termios.h>
 #include <unistd.h>
-#include <netinet/in.h>
-#include <sys/time.h>
 #include <iostream>
 #include <sstream>
 #include "poll.h"
-#include <lib_atlas/macros.h>
-#include <lib_atlas/exceptions.h>
-#include <lib_atlas/io/formatter.h>
-#include "imu_driver.h"
 
 #define CMD_ACCEL_ANGRATE_MAG_ORIENT_REP_LEN 79
 #define CMD_RAW_ACCEL_ANGRATE_LEN 31
@@ -645,9 +645,9 @@ int ImuDriver::Receive(uint8_t command, void *rep, int rep_len, int timeout,
 
   skippedbytes = 0;
 
-//  struct pollfd ufd[1];
-//  ufd[0].fd = file_descriptor_;
-//  ufd[0].events = POLLIN;
+  //  struct pollfd ufd[1];
+  //  ufd[0].fd = file_descriptor_;
+  //  ufd[0].events = POLLIN;
 
   // Skip everything until we find our "header"
   *(uint8_t *)(rep) = 0;

@@ -7,8 +7,8 @@
  * found in the LICENSE file.
  */
 
-#include "ros/console.h"
 #include "imu_driver.h"
+#include "ros/console.h"
 
 int main(int argc, char **argv) {
   if (std::string(argv[2]).compare("reset") != 0) {
@@ -27,7 +27,8 @@ int main(int argc, char **argv) {
     imu.OpenPort(argv[1]);
   } catch (std::runtime_error &e) {
     std::cout << "unable to communicate with the IMU on port: " << argv[1]
-              << "\n" << e.what() << std::endl;
+              << "\n"
+              << e.what() << std::endl;
     return 1;
   }
 
