@@ -451,16 +451,16 @@ void ImuNode::BuildRosMessages() {
   imu_msg_.linear_acceleration.z = accel[2];
 
   accel_msg_.accel.accel.linear.x = accel[0];
-  accel_msg_.accel.accel.linear.x = accel[1];
-  accel_msg_.accel.accel.linear.x = accel[2];
+  accel_msg_.accel.accel.linear.y = accel[1];
+  accel_msg_.accel.accel.linear.z = accel[2];
 
   imu_msg_.angular_velocity.x = angrate[0];
   imu_msg_.angular_velocity.y = angrate[1];
   imu_msg_.angular_velocity.z = angrate[2];
 
   twist_msg_.twist.twist.angular.x = angrate[0];
-  twist_msg_.twist.twist.angular.x = angrate[1];
-  twist_msg_.twist.twist.angular.x = angrate[2];
+  twist_msg_.twist.twist.angular.y = angrate[1];
+  twist_msg_.twist.twist.angular.z = angrate[2];
 
   tf::Quaternion quat;
   (tf::Matrix3x3(-1, 0, 0, 0, 1, 0, 0, 0, -1) *
@@ -474,10 +474,10 @@ void ImuNode::BuildRosMessages() {
   magnetic_field_msg_.magnetic_field.y = mag[1];
   magnetic_field_msg_.magnetic_field.z = mag[2];
 
-  imu_msg_.header.stamp = ros::Time::now().fromNSec(time);
-  accel_msg_.header.stamp = ros::Time::now().fromNSec(time);
-  twist_msg_.header.stamp = ros::Time::now().fromNSec(time);
-  magnetic_field_msg_.header.stamp = ros::Time::now().fromNSec(time);
+  imu_msg_.header.stamp = ros::Time::now();
+  accel_msg_.header.stamp = ros::Time::now();
+  twist_msg_.header.stamp = ros::Time::now();
+  magnetic_field_msg_.header.stamp = ros::Time::now();
 }
 
 //------------------------------------------------------------------------------
