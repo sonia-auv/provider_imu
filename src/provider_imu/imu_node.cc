@@ -266,7 +266,8 @@ std::string ImuNode::getID(bool output_info) {
   while (*dev_serial_num_ptr == ' ') dev_serial_num_ptr++;
 
   return (boost::format("%s_%s-%s") % dev_name_ptr % dev_model_num_ptr %
-          dev_serial_num_ptr).str();
+          dev_serial_num_ptr)
+      .str();
 }
 
 //------------------------------------------------------------------------------
@@ -462,13 +463,56 @@ void ImuNode::BuildRosMessages() {
   twist_msg_.twist.twist.angular.y = angrate[1];
   twist_msg_.twist.twist.angular.z = angrate[2];
 
-  tf::Quaternion quat;
-  (tf::Matrix3x3(-1, 0, 0, 0, 1, 0, 0, 0, -1) *
-   tf::Matrix3x3(orientation[0], orientation[3], orientation[6], orientation[1],
-                 orientation[4], orientation[7], orientation[2], orientation[5],
-                 orientation[8])).getRotation(quat);
+  // Calculating the Quaternion here, From Microstrain documentation
+  // Page 57.
 
-  tf::quaternionTFToMsg(quat, imu_msg_.orientation);
+  auto m11 = orientation[0];
+  auto m12 = orientation[1];
+  auto m13 = orientation[2];
+  auto m21 = orientation[3];
+  auto m22 = orientation[4];
+  auto m23 = orientation[5];
+  auto m31 = orientation[6];
+  auto m32 = orientation[7];
+  auto m33 = orientation[8];
+
+  auto test1 = m11 + m22 + m33;
+  auto test2 = m11 - m22 - m33;
+  auto test3 = -m11 + m22 - m33;
+  auto test4 = -m11 - m22 + m33;
+
+  auto max = test1;
+  for (const auto &e : std::vector<double>{test2, test3, test4}) {
+    if (e > max) {
+      max = e;
+    }
+  }
+
+  if (max == test1) {
+    auto s = 2 * std::sqrt(1 + m11 + m22 + m33);
+    imu_msg_.orientation.w = s / 4;
+    imu_msg_.orientation.x = (m23 - m32) / s;
+    imu_msg_.orientation.y = (m31 - m13) / s;
+    imu_msg_.orientation.z = (m12 - m21) / s;
+  } else if (max == test2) {
+    auto s = 2 * std::sqrt(1 + m11 - m22 - m33);
+    imu_msg_.orientation.w = (m32 - m23) / s;
+    imu_msg_.orientation.x = -s / 4;
+    imu_msg_.orientation.y = -(m21 - m12) / s;
+    imu_msg_.orientation.z = -(m13 - m31) / s;
+  } else if (max == test3) {
+    auto s = 2 * std::sqrt(1 - m11 + m22 - m33);
+    imu_msg_.orientation.w = (m13 - m31) / s;
+    imu_msg_.orientation.x = -(m21 + m12) / s;
+    imu_msg_.orientation.y = -s / 4;
+    imu_msg_.orientation.z = -(m32 + m23) / s;
+  } else if (max == test4) {
+    auto s = 2 * std::sqrt(1 - m11 - m22 + m33);
+    imu_msg_.orientation.w = (m21 - m12) / s;
+    imu_msg_.orientation.x = -(m13 + m31) / s;
+    imu_msg_.orientation.y = -(m32 + m23) / s;
+    imu_msg_.orientation.z = -s / 4;
+  }
 
   magnetic_field_msg_.magnetic_field.x = mag[0];
   magnetic_field_msg_.magnetic_field.y = mag[1];
