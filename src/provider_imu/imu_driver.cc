@@ -486,7 +486,12 @@ void ImuDriver::ReceiveAccelAngrateMagOrientation(uint64_t *time, double *accel,
   uint64_t sys_time;
   uint64_t imu_time;
 
+  try {
   Receive(CMD_ACCEL_ANGRATE_MAG_ORIENT, rep, sizeof(rep), 1000, &sys_time);
+  } catch (const atlas::CorruptedDataException &e) {
+    ROS_ERROR(e.what());
+    return;
+  }
 
   // Read the acceleration:
   k = 1;
