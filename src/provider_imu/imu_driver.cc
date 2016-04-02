@@ -734,7 +734,7 @@ uint64_t ImuDriver::ToUint64(double time) { return (uint64_t)(time * 1e9); }
 //------------------------------------------------------------------------------
 //
 void ImuDriver::Reset() {
-  uint8_t cmd[2];
+  uint8_t cmd[3];
 
   cmd[0] = CMD_RESET_IMU;
   cmd[1] = 0x9E;  // Confirms user intent
