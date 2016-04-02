@@ -498,8 +498,8 @@ void ImuNode::BuildRosMessages() {
     auto s = 2 * std::sqrt(1 + m11 - m22 - m33);
     imu_msg_.orientation.w = (m32 - m23) / s;
     imu_msg_.orientation.x = -s / 4;
-    imu_msg_.orientation.y = -(m21 - m12) / s;
-    imu_msg_.orientation.z = -(m13 - m31) / s;
+    imu_msg_.orientation.y = -(m21 + m12) / s;
+    imu_msg_.orientation.z = -(m13 + m31) / s;
   } else if (max == test3) {
     auto s = 2 * std::sqrt(1 - m11 + m22 - m33);
     imu_msg_.orientation.w = (m13 - m31) / s;
