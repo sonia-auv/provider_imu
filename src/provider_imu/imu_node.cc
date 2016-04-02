@@ -36,6 +36,8 @@
  */
 
 #include "provider_imu/imu_node.h"
+#include <lib_atlas/exceptions.h>
+#include <ros/ros.h>
 
 namespace provider_imu {
 
@@ -444,8 +446,13 @@ void ImuNode::BuildRosMessages() {
   double mag[3];
   double orientation[9];
 
-  imu_driver_.ReceiveAccelAngrateMagOrientation(&time, accel, angrate, mag,
-                                                orientation);
+  try {
+    imu_driver_.ReceiveAccelAngrateMagOrientation(&time, accel, angrate, mag,
+                                                  orientation);
+  } catch (const atlas::CorruptedDataException &e) {
+    ROS_ERROR(e.what());
+    return;
+  }
 
   imu_msg_.linear_acceleration.x = accel[0];
   imu_msg_.linear_acceleration.y = accel[1];

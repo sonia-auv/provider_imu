@@ -31,6 +31,7 @@
  *  POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <lib_atlas/exceptions.h>
 #include <boost/format.hpp>
 #include <string>
 #include "imu_driver.h"
@@ -115,9 +116,12 @@ int main(int argc, char **argv) {
   if (verbose) fprintf(stdout, "IMU Device at port %s has ID: ", argv[1]);
   fprintf(stdout, "%s\n", id.c_str());
 
-  std::string firmware = imu.GetFirmware();
-
-  std::cout << "Firmware version is: " << firmware << std::endl;
+  try {
+    std::string firmware = imu.GetFirmware();
+    std::cout << "Firmware version is: " << firmware << std::endl;
+  } catch (const atlas::CorruptedDataException &e) {
+    ROS_ERROR(e.what());
+  }
 
   try {
     imu.ClosePort();
