@@ -1,5 +1,5 @@
 <launch>
-	<node name="provider_imu_node"
+	<node name="provider_imu"
 	    pkg="provider_imu"
 	    type="provider_imu_node"
 	    output="log" />
