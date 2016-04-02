@@ -19,12 +19,10 @@
  */
 
 #include "imu_driver.h"
-#include <errno.h>
 #include <fcntl.h>
+#include <ros/ros.h>
 #include <lib_atlas/exceptions.h>
 #include <lib_atlas/io/formatter.h>
-#include <lib_atlas/macros.h>
-#include <math.h>
 #include <netinet/in.h>
 #include <string.h>
 #include <sys/time.h>
@@ -304,9 +302,7 @@ void ImuDriver::ReceiveAccelAngrateMag(uint64_t *time, double *accel,
   uint64_t sys_time;
   uint64_t imu_time;
 
-  // ROS_DEBUG("About to do receive.");
   Receive(CMD_ACCEL_ANGRATE_MAG, rep, sizeof(rep), 1000, &sys_time);
-  // ROS_DEBUG("Receive finished.");
 
   // Read the acceleration:
   k = 1;
@@ -487,7 +483,7 @@ void ImuDriver::ReceiveAccelAngrateMagOrientation(uint64_t *time, double *accel,
   uint64_t imu_time;
 
   try {
-  Receive(CMD_ACCEL_ANGRATE_MAG_ORIENT, rep, sizeof(rep), 1000, &sys_time);
+    Receive(CMD_ACCEL_ANGRATE_MAG_ORIENT, rep, sizeof(rep), 1000, &sys_time);
   } catch (const atlas::CorruptedDataException &e) {
     ROS_ERROR(e.what());
     return;
