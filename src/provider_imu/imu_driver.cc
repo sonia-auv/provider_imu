@@ -23,13 +23,7 @@
 #include <ros/ros.h>
 #include <lib_atlas/exceptions.h>
 #include <lib_atlas/io/formatter.h>
-#include <netinet/in.h>
-#include <string.h>
-#include <sys/time.h>
 #include <termios.h>
-#include <unistd.h>
-#include <iostream>
-#include <sstream>
 #include "poll.h"
 
 #define CMD_ACCEL_ANGRATE_MAG_ORIENT_REP_LEN 79
@@ -485,7 +479,7 @@ void ImuDriver::ReceiveAccelAngrateMagOrientation(uint64_t *time, double *accel,
   try {
     Receive(CMD_ACCEL_ANGRATE_MAG_ORIENT, rep, sizeof(rep), 1000, &sys_time);
   } catch (const atlas::CorruptedDataException &e) {
-    ROS_ERROR(e.what());
+    ROS_ERROR_STREAM(e.what());
     return;
   }
 

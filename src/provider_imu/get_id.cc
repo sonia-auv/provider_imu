@@ -120,7 +120,7 @@ int main(int argc, char **argv) {
     std::string firmware = imu.GetFirmware();
     std::cout << "Firmware version is: " << firmware << std::endl;
   } catch (const atlas::CorruptedDataException &e) {
-    ROS_ERROR(e.what());
+    ROS_ERROR_STREAM(e.what());
   }
 
   try {
