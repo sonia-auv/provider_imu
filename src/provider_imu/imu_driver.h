@@ -302,17 +302,8 @@ class ImuDriver {
   //! The last number of ticks for computing wraparound
   uint32_t last_ticks_;
 
-  //! The different in the number of ticks
-  uint32_t diff_ticks_;
-
   //! The time at which the imu was started
   unsigned long long start_time_;
-
-  //! The estimate of time offset and driftrate
-  double time_est_[2];
-
-  //! The covariances on time offset and driftrate
-  double P_time_est_[2][2];
 
   //! Whether continuous mode is enabled
   bool continuous_;

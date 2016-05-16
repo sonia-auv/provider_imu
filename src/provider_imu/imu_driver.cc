@@ -25,6 +25,7 @@
 #include <lib_atlas/io/formatter.h>
 #include <termios.h>
 #include "poll.h"
+#include <lib_atlas/macros.h>
 
 #define CMD_ACCEL_ANGRATE_MAG_ORIENT_REP_LEN 79
 #define CMD_RAW_ACCEL_ANGRATE_LEN 31
@@ -74,9 +75,11 @@ static unsigned long long time_helper() {
 
 // Some systems (e.g., OS X) require explicit externing of static class
 // members.
+#ifndef OS_DARWIN
 extern constexpr double ImuDriver::G;
 extern constexpr double ImuDriver::KF_K_1;
 extern constexpr double ImuDriver::KF_K_2;
+#endif
 
 //==============================================================================
 // C / D T O R   S E C T I O N
