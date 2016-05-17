@@ -20,12 +20,12 @@
 
 #include "imu_driver.h"
 #include <fcntl.h>
-#include <ros/ros.h>
 #include <lib_atlas/exceptions.h>
 #include <lib_atlas/io/formatter.h>
+#include <lib_atlas/macros.h>
+#include <ros/ros.h>
 #include <termios.h>
 #include "poll.h"
-#include <lib_atlas/macros.h>
 
 #define CMD_ACCEL_ANGRATE_MAG_ORIENT_REP_LEN 79
 #define CMD_RAW_ACCEL_ANGRATE_LEN 31
