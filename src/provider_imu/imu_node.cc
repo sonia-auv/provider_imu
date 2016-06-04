@@ -59,32 +59,8 @@ ImuNode::ImuNode(ros::NodeHandle h)
           &desired_freq_, &desired_freq_, 0.05)) {
   ros::NodeHandle imu_node_handle(node_handle_, "provider_imu");
 
-  private_node_handle_.param("provider_imu/driver/autocalibrate",
-                             autocalibrate_, false);
-  private_node_handle_.param("provider_imu/driver/assume_calibrated",
-                             calibrated_, false);
-  private_node_handle_.param("provider_imu/driver/port", port_,
-                             std::string("/dev/ttyACM0"));
-  private_node_handle_.param("provider_imu/imu/max_drift_rate", max_drift_rate_,
-                             0.0002);
-
-  imu_pub_ = imu_node_handle.advertise<sensor_msgs::Imu>("imu", 100);
-  accel_pub_ =
-      imu_node_handle.advertise<geometry_msgs::AccelWithCovarianceStamped>(
-          "acceleration", 100);
-  twist_pub_ =
-      imu_node_handle.advertise<geometry_msgs::TwistWithCovarianceStamped>(
-          "twist", 100);
-  magnetic_pub_ = imu_node_handle.advertise<sensor_msgs::MagneticField>(
-      "magnetic_field", 100);
-
-  add_offset_serv_ = private_node_handle_.advertiseService(
-      "add_offset", &ImuNode::AddOffsetCallback, this);
-  calibrate_serv_ = imu_node_handle.advertiseService(
-      "calibrate", &ImuNode::CalibrateCallback, this);
-  is_calibrated_pub_ =
-      imu_node_handle.advertise<std_msgs::Bool>("is_calibrated", 1, true);
-
+  DeserializeRosParameters();
+  SetRosServicesAndTopics(imu_node_handle);
   PublishIsCalibrated();
 
   cmd_ = provider_imu::ImuDriver::CMD_ACCEL_ANGRATE_MAG_ORIENT;
@@ -93,56 +69,8 @@ ImuNode::ImuNode(ros::NodeHandle h)
 
   bias_x_ = bias_y_ = bias_z_ = 0;
 
-  private_node_handle_.param("provider_imu/driver/frame_id", frameid_,
-                             std::string("imu"));
-  imu_msg_.header.frame_id = frameid_;
-
-  private_node_handle_.param("provider_imu/driver/time_offset", offset_, 0.0);
-
-  private_node_handle_.param("provider_imu/imu/linear_acceleration_stdev",
-                             linear_acceleration_stdev_, 0.098);
-  private_node_handle_.param("provider_imu/imu/orientation_stdev",
-                             orientation_stdev_, 0.035);
-  private_node_handle_.param("provider_imu/imu/angular_velocity_stdev",
-                             angular_velocity_stdev_, 0.012);
-
-  angular_velocity_covariance_ =
-      angular_velocity_stdev_ * angular_velocity_stdev_;
-  orientation_covariance_ = orientation_stdev_ * orientation_stdev_;
-  linear_acceleration_covariance_ =
-      linear_acceleration_stdev_ * linear_acceleration_stdev_;
-
-  imu_msg_.linear_acceleration_covariance[0] = linear_acceleration_covariance_;
-  imu_msg_.linear_acceleration_covariance[4] = linear_acceleration_covariance_;
-  imu_msg_.linear_acceleration_covariance[8] = linear_acceleration_covariance_;
-  accel_msg_.accel.covariance[0] = linear_acceleration_covariance_;
-  accel_msg_.accel.covariance[4] = linear_acceleration_covariance_;
-  accel_msg_.accel.covariance[8] = linear_acceleration_covariance_;
-
-  imu_msg_.angular_velocity_covariance[0] = angular_velocity_covariance_;
-  imu_msg_.angular_velocity_covariance[4] = angular_velocity_covariance_;
-  imu_msg_.angular_velocity_covariance[8] = angular_velocity_covariance_;
-  twist_msg_.twist.covariance[0] = angular_velocity_covariance_;
-  twist_msg_.twist.covariance[4] = angular_velocity_covariance_;
-  twist_msg_.twist.covariance[8] = angular_velocity_covariance_;
-
-  imu_msg_.orientation_covariance[0] = orientation_covariance_;
-  imu_msg_.orientation_covariance[4] = orientation_covariance_;
-  imu_msg_.orientation_covariance[8] = orientation_covariance_;
-
-  self_test_.add("Close Test", this, &ImuNode::PreTest);
-  self_test_.add("Interruption Test", this, &ImuNode::InterruptionTest);
-  self_test_.add("Connect Test", this, &ImuNode::ConnectTest);
-  self_test_.add("Read ID Test", this, &ImuNode::ReadIDTest);
-  self_test_.add("Gyro Bias Test", this, &ImuNode::GyroBiasTest);
-  self_test_.add("Streamed Data Test", this, &ImuNode::StreamedDataTest);
-  self_test_.add("Gravity Test", this, &ImuNode::GravityTest);
-  self_test_.add("Disconnect Test", this, &ImuNode::DisconnectTest);
-  self_test_.add("Resume Test", this, &ImuNode::ResumeTest);
-
-  diagnostic_.add(freq_diag_);
-  diagnostic_.add("Calibration Status", this, &ImuNode::GetCalibrationStatus);
-  diagnostic_.add("IMU Status", this, &ImuNode::GetDeviceStatus);
+  SetCovariancesValues();
+  AddTestToRosWrappers();
 }
 
 ImuNode::~ImuNode() { Stop(); }
@@ -187,31 +115,15 @@ void ImuNode::ClearErrorStatus() { error_status_.clear(); }
 //
 int ImuNode::Start() {
   Stop();
-
+  auto error = 0;
   try {
-    try {
-      imu_driver_.OpenPort(port_.c_str());
-    } catch (std::runtime_error &e) {
-      error_count_++;
-      SetErrorStatus(e.what());
-      diagnostic_.broadcast(2, e.what());
-      return -1;
-    }
+    error = TryOpeningDeviceOrLog();
 
     ROS_INFO("Initializing IMU time with offset %f.", offset_);
 
     imu_driver_.InitTime(offset_);
 
-    if (autocalibrate_ || calibrate_requested_) {
-      CheckCalibration();
-      calibrate_requested_ = false;
-      autocalibrate_ =
-          false;  // No need to do this each time we reopen the device.
-    } else {
-      ROS_INFO(
-          "Not calibrating the IMU sensor. Use the calibrate service to "
-          "calibrate it before use.");
-    }
+    CheckDeviceDriftIfEnabled();
 
     ROS_INFO("IMU sensor initialized.");
 
@@ -222,9 +134,46 @@ int ImuNode::Start() {
     running_ = true;
 
   } catch (std::runtime_error &e) {
-    error_count_++;
-    usleep(100000);                // Give isShuttingDown a chance to go true.
-    if (!ros::isShuttingDown()) {  // Don't warn if we are shutting down.
+    return WaitForShutDownAndLogError(e);
+  }
+  return error;
+}
+
+//------------------------------------------------------------------------------
+//
+int ImuNode::TryOpeningDeviceOrLog() {
+  try {
+      imu_driver_.OpenPort(port_.c_str());
+    } catch (std::runtime_error &e) {
+      error_count_++;
+      SetErrorStatus(e.what());
+      diagnostic_.broadcast(2, e.what());
+      return -1;
+    }
+  return 0;
+}
+
+//------------------------------------------------------------------------------
+//
+void ImuNode::CheckDeviceDriftIfEnabled() {
+  if (autocalibrate_ || calibrate_requested_) {
+    CheckDeviceDrift();
+      calibrate_requested_ = false;
+      autocalibrate_ =
+          false;  // No need to do this each time we reopen the device.
+    } else {
+      ROS_INFO(
+          "Not calibrating the IMU sensor. Use the calibrate service to "
+          "calibrate it before use.");
+    }
+}
+
+//------------------------------------------------------------------------------
+//
+int ImuNode::WaitForShutDownAndLogError(const std::runtime_error &e) {
+  error_count_++;
+  usleep(100000);                // Give isShuttingDown a chance to go true.
+  if (!ros::isShuttingDown()) {  // Don't warn if we are shutting down.
       SetErrorStatusF(
           "Exception thrown while starting IMU. This sometimes happens if "
           "you are not connected to an IMU or if another process is trying "
@@ -233,10 +182,7 @@ int ImuNode::Start() {
           port_.c_str(), e.what());
       diagnostic_.broadcast(2, "Error opening IMU.");
     }
-    return -1;
-  }
-
-  return (0);
+  return -1;
 }
 
 //------------------------------------------------------------------------------
@@ -330,20 +276,7 @@ int ImuNode::PublishData() {
     // Next time an error occurs, we want to print it.
     ClearErrorStatus();
   } catch (std::runtime_error &e) {
-    error_count_++;
-
-    // Give isShuttingDown a chance to go true.
-    usleep(100000);
-    if (!ros::isShuttingDown()) {
-      // Don't warn if we are shutting down.
-      ROS_WARN(
-          "Exception thrown while trying to get the IMU reading. This "
-          "sometimes happens due to a communication glitch, or if another "
-          "process is trying to access the IMU port. You may try 'lsof|grep "
-          "%s' to see if other processes have the port open. %s",
-          port_.c_str(), e.what());
-    }
-    return -1;
+    return WaitForShutDownAndLogError(e);
   }
 
   return (0);
@@ -690,7 +623,7 @@ bool ImuNode::CalibrateCallback(std_srvs::Empty::Request &req,
       Start();  // Start will do the calibration.
     } else {
       imu_driver_.OpenPort(port_.c_str());
-      CheckCalibration();
+      CheckDeviceDrift();
       imu_driver_.ClosePort();
     }
   } catch (std::runtime_error &e) {
@@ -710,7 +643,7 @@ bool ImuNode::CalibrateCallback(std_srvs::Empty::Request &req,
 
 //------------------------------------------------------------------------------
 //
-void ImuNode::CheckCalibration() {  // Expects to be called with the IMU
+void ImuNode::CheckDeviceDrift() {  // Expects to be called with the IMU
   // stopped.
   ROS_INFO("Calibrating IMU gyros.");
   imu_driver_.InitGyros(&bias_x_, &bias_y_, &bias_z_);
@@ -766,6 +699,98 @@ void ImuNode::CheckCalibration() {  // Expects to be called with the IMU
     }
     imu_driver_.StopContinuous();
   }
+}
+
+//------------------------------------------------------------------------------
+//
+void ImuNode::SetCovariancesValues() {
+  angular_velocity_covariance_ =
+      angular_velocity_stdev_ * angular_velocity_stdev_;
+  orientation_covariance_ = orientation_stdev_ * orientation_stdev_;
+  linear_acceleration_covariance_ =
+      linear_acceleration_stdev_ * linear_acceleration_stdev_;
+
+  imu_msg_.linear_acceleration_covariance[0] = linear_acceleration_covariance_;
+  imu_msg_.linear_acceleration_covariance[4] = linear_acceleration_covariance_;
+  imu_msg_.linear_acceleration_covariance[8] = linear_acceleration_covariance_;
+  accel_msg_.accel.covariance[0] = linear_acceleration_covariance_;
+  accel_msg_.accel.covariance[4] = linear_acceleration_covariance_;
+  accel_msg_.accel.covariance[8] = linear_acceleration_covariance_;
+
+  imu_msg_.angular_velocity_covariance[0] = angular_velocity_covariance_;
+  imu_msg_.angular_velocity_covariance[4] = angular_velocity_covariance_;
+  imu_msg_.angular_velocity_covariance[8] = angular_velocity_covariance_;
+  twist_msg_.twist.covariance[0] = angular_velocity_covariance_;
+  twist_msg_.twist.covariance[4] = angular_velocity_covariance_;
+  twist_msg_.twist.covariance[8] = angular_velocity_covariance_;
+
+  imu_msg_.orientation_covariance[0] = orientation_covariance_;
+  imu_msg_.orientation_covariance[4] = orientation_covariance_;
+  imu_msg_.orientation_covariance[8] = orientation_covariance_;
+}
+
+//------------------------------------------------------------------------------
+//
+void ImuNode::AddTestToRosWrappers() {
+  self_test_.add("Close Test", this, &ImuNode::PreTest);
+  self_test_.add("Interruption Test", this, &ImuNode::InterruptionTest);
+  self_test_.add("Connect Test", this, &ImuNode::ConnectTest);
+  self_test_.add("Read ID Test", this, &ImuNode::ReadIDTest);
+  self_test_.add("Gyro Bias Test", this, &ImuNode::GyroBiasTest);
+  self_test_.add("Streamed Data Test", this, &ImuNode::StreamedDataTest);
+  self_test_.add("Gravity Test", this, &ImuNode::GravityTest);
+  self_test_.add("Disconnect Test", this, &ImuNode::DisconnectTest);
+  self_test_.add("Resume Test", this, &ImuNode::ResumeTest);
+
+  diagnostic_.add(freq_diag_);
+  diagnostic_.add("Calibration Status", this, &ImuNode::GetCalibrationStatus);
+  diagnostic_.add("IMU Status", this, &ImuNode::GetDeviceStatus);
+}
+
+//------------------------------------------------------------------------------
+//
+void ImuNode::SetRosServicesAndTopics(ros::NodeHandle &imu_node_handle) {
+  imu_pub_ = imu_node_handle.advertise<sensor_msgs::Imu>("imu", 100);
+  accel_pub_ =
+      imu_node_handle.advertise<geometry_msgs::AccelWithCovarianceStamped>(
+          "acceleration", 100);
+  twist_pub_ =
+      imu_node_handle.advertise<geometry_msgs::TwistWithCovarianceStamped>(
+          "twist", 100);
+  magnetic_pub_ = imu_node_handle.advertise<sensor_msgs::MagneticField>(
+      "magnetic_field", 100);
+
+  add_offset_serv_ = private_node_handle_.advertiseService(
+      "add_offset", &ImuNode::AddOffsetCallback, this);
+  calibrate_serv_ = imu_node_handle.advertiseService(
+      "calibrate", &ImuNode::CalibrateCallback, this);
+  is_calibrated_pub_ =
+      imu_node_handle.advertise<std_msgs::Bool>("is_calibrated", 1, true);
+}
+
+//------------------------------------------------------------------------------
+//
+void ImuNode::DeserializeRosParameters() {
+  private_node_handle_.param("provider_imu/driver/autocalibrate",
+                             autocalibrate_, false);
+  private_node_handle_.param("provider_imu/driver/assume_calibrated",
+                             calibrated_, false);
+  private_node_handle_.param("provider_imu/driver/port", port_,
+                             std::string("/Users/Des0ps/ttyACM0"));
+  private_node_handle_.param("provider_imu/imu/max_drift_rate", max_drift_rate_,
+                             0.0002);
+  private_node_handle_.param("provider_imu/driver/frame_id", frameid_,
+                             std::string("imu"));
+  imu_msg_.header.frame_id = frameid_;
+
+  private_node_handle_.param("provider_imu/driver/time_offset", offset_, 0.0);
+
+  private_node_handle_.param("provider_imu/imu/linear_acceleration_stdev",
+                             linear_acceleration_stdev_, 0.098);
+  private_node_handle_.param("provider_imu/imu/orientation_stdev",
+                             orientation_stdev_, 0.035);
+  private_node_handle_.param("provider_imu/imu/angular_velocity_stdev",
+                             angular_velocity_stdev_, 0.012);
 }
 
 }  // namespace provider_imu

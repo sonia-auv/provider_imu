@@ -123,9 +123,26 @@ class ImuNode {
   bool CalibrateCallback(std_srvs::Empty::Request &req,
                          std_srvs::Empty::Response &resp);
 
-  void CheckCalibration();
+  void CheckDeviceDrift();
 
  private:
+  //============================================================================
+  // P R I V A T E  M E T H O D S
+
+  void DeserializeRosParameters();
+
+  void SetRosServicesAndTopics(ros::NodeHandle &imu_node_handle);
+
+  void AddTestToRosWrappers();
+
+  void SetCovariancesValues();
+
+  int WaitForShutDownAndLogError(const std::runtime_error &e);
+
+  void CheckDeviceDriftIfEnabled();
+
+  int TryOpeningDeviceOrLog();
+
   //============================================================================
   // P R I V A T E  M E M B E R S
 
