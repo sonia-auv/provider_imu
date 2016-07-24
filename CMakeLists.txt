@@ -94,16 +94,16 @@ include_directories(
 
 add_executable(${PROJECT_NAME}_node ${provider_imu_SRC_DIR}/${PROJECT_NAME}/main.cc ${provider_imu_FILES})
 target_link_libraries(${PROJECT_NAME}_node ${catkin_LIBRARIES} ${lib_atlas_LIBRARIES})
-add_dependencies(${PROJECT_NAME}_node ${PROJECT_NAME}_generate_messages_cpp sonia_msgs_generate_messages_cpp)
+add_dependencies(${PROJECT_NAME}_node sonia_msgs_generate_messages_cpp)
 
 # Utility to recover ID from IMU
 add_executable(get_id ${provider_imu_SRC_DIR}/${PROJECT_NAME}/get_id.cc ${provider_imu_FILES})
 target_link_libraries(get_id ${catkin_LIBRARIES} ${lib_atlas_LIBRARIES} ${LOG4CXX_LIBRARY})
-add_dependencies(get_id ${PROJECT_NAME}_generate_messages_cpp sonia_msgs_generate_messages_cpp)
+add_dependencies(get_id sonia_msgs_generate_messages_cpp)
 
 add_executable(reset ${provider_imu_SRC_DIR}/${PROJECT_NAME}/reset.cc ${provider_imu_FILES})
 target_link_libraries(reset ${catkin_LIBRARIES} ${lib_atlas_LIBRARIES} ${LOG4CXX_LIBRARY})
-add_dependencies(reset ${PROJECT_NAME}_generate_messages_cpp sonia_msgs_generate_messages_cpp)
+add_dependencies(reset sonia_msgs_generate_messages_cpp)
 
 #==========================================================================
 # U N I T   T E S T S
