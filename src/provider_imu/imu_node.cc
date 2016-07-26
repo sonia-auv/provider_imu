@@ -776,7 +776,7 @@ void ImuNode::DeserializeRosParameters() {
   private_node_handle_.param("provider_imu/driver/assume_calibrated",
                              calibrated_, false);
   private_node_handle_.param("provider_imu/driver/port", port_,
-                             std::string("/Users/Des0ps/ttyACM0"));
+                             std::string("/dev/ttyACM0"));
   private_node_handle_.param("provider_imu/imu/max_drift_rate", max_drift_rate_,
                              0.0002);
   private_node_handle_.param("provider_imu/driver/frame_id", frameid_,
