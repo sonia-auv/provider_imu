@@ -26,6 +26,7 @@
 #include <ros/ros.h>
 #include <termios.h>
 #include "poll.h"
+#include <execinfo.h>
 
 #define CMD_ACCEL_ANGRATE_MAG_ORIENT_REP_LEN 79
 #define CMD_RAW_ACCEL_ANGRATE_LEN 31
@@ -684,10 +685,22 @@ int ImuDriver::Receive(uint8_t command, void *rep, int rep_len, int timeout,
   // If wrong throw std::runtime_error
   uint16_t correct_cks =
       details::bswap_16(*(uint16_t *)((uint8_t *)rep + rep_len - 2));
-  if (checksum != correct_cks)
+  if (checksum != correct_cks){
+
+
+      void *buffer[100];
+      int n = backtrace(buffer,10);
+      char **str = backtrace_symbols(buffer, n);    for (int i = 0; i < n; i++)
+      {
+          printf("%d:  %s\n", i, str[i]);
+      }
+
     ATLAS_THROW(atlas::CorruptedDataException,
                 "invalid checksum.\n Make sure the IMU sensor is connected to "
-                "this computer.");
+                        "this computer.");
+
+  }
+
 
   return bytes;
 }
