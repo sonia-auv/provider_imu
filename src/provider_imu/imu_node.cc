@@ -449,6 +449,16 @@ void ImuNode::BuildRosMessages() {
     imu_msg_.orientation.z = -s / 4;
   }
 
+  tf::Quaternion quat((tfScalar)imu_msg_.orientation.x, (tfScalar)imu_msg_.orientation.y, (tfScalar)imu_msg_.orientation.z, (tfScalar)imu_msg_.orientation.w);
+
+  tf::Matrix3x3 m(quat);
+
+  double roll, pitch, yaw;
+
+  m.getRPY(roll, pitch, yaw);
+
+  ROS_INFO("RPY : %f, %f, %f", roll, pitch, yaw);
+
   magnetic_field_msg_.magnetic_field.x = mag[0];
   magnetic_field_msg_.magnetic_field.y = mag[1];
   magnetic_field_msg_.magnetic_field.z = mag[2];
