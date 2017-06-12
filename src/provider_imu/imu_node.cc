@@ -454,13 +454,13 @@ void ImuNode::BuildRosMessages() {
   magnetic_field_msg_.magnetic_field.z = mag[2];
 
   imu_msg_.header.stamp = ros::Time::now();
-  imu_msg_.header.frame_id = "NED";
+  imu_msg_.header.frame_id = frameid_;
   accel_msg_.header.stamp = ros::Time::now();
-  accel_msg_.header.frame_id = "NED";
+  accel_msg_.header.frame_id = frameid_;
   twist_msg_.header.stamp = ros::Time::now();
-  twist_msg_.header.frame_id = "NED";
+  twist_msg_.header.frame_id = frameid_;
   magnetic_field_msg_.header.stamp = ros::Time::now();
-  magnetic_field_msg_.header.frame_id = "NED";
+  magnetic_field_msg_.header.frame_id = frameid_;
 }
 
 //------------------------------------------------------------------------------
