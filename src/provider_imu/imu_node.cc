@@ -457,7 +457,7 @@ void ImuNode::BuildRosMessages() {
 
   m.getRPY(roll, pitch, yaw);
 
-  ROS_INFO("RPY : %f, %f, %f", roll, pitch, yaw);
+  ROS_INFO("RPY : %f, %f, %f", roll * 180.0f/M_PI, pitch * 180.0f/M_PI, yaw * 180.0f/M_PI);
 
   magnetic_field_msg_.magnetic_field.x = mag[0];
   magnetic_field_msg_.magnetic_field.y = mag[1];
