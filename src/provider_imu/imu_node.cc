@@ -411,6 +411,8 @@ void ImuNode::BuildRosMessages() {
   auto m32 = orientation[7];
   auto m33 = orientation[8];
 
+//  std::cout << m11 << "," << m12 << "," << m13 << "," << m21 << ","<< m22 << ","<< m23 << "," << m31 << ","<< m32 << ","<< m33 << std::endl;
+
   auto test1 = m11 + m22 + m33;
   auto test2 = m11 - m22 - m33;
   auto test3 = -m11 + m22 - m33;
@@ -456,8 +458,6 @@ void ImuNode::BuildRosMessages() {
   double roll, pitch, yaw;
 
   m.getRPY(roll, pitch, yaw);
-
-  ROS_INFO("RPY : %f, %f, %f", roll * 180.0f/M_PI, pitch * 180.0f/M_PI, yaw * 180.0f/M_PI);
 
   magnetic_field_msg_.magnetic_field.x = mag[0];
   magnetic_field_msg_.magnetic_field.y = mag[1];
