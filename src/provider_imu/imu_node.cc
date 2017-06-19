@@ -460,9 +460,9 @@ void ImuNode::BuildRosMessages() {
 
   m.getRPY(roll, pitch, yaw);
 
-  rpy_msg_.orientation.x = roll;
-  rpy_msg_.orientation.y = pitch;
-  rpy_msg_.orientation.z = yaw;
+  rpy_msg_.orientation.x = roll * (180/M_PI);
+  rpy_msg_.orientation.y = pitch * (180/M_PI);
+  rpy_msg_.orientation.z = yaw * (180/M_PI);
 
   magnetic_field_msg_.magnetic_field.x = mag[0];
   magnetic_field_msg_.magnetic_field.y = mag[1];
