@@ -259,6 +259,7 @@ int ImuNode::PublishData() {
 
     imu_pub_.publish(imu_msg_);
     accel_pub_.publish(accel_msg_);
+    rpy_pub_.publish(rpy_msg_);
     twist_pub_.publish(twist_msg_);
     magnetic_pub_.publish(magnetic_field_msg_);
 
@@ -458,6 +459,10 @@ void ImuNode::BuildRosMessages() {
   double roll, pitch, yaw;
 
   m.getRPY(roll, pitch, yaw);
+
+  rpy_msg_.orientation.x = roll;
+  rpy_msg_.orientation.y = pitch;
+  rpy_msg_.orientation.z = yaw;
 
   magnetic_field_msg_.magnetic_field.x = mag[0];
   magnetic_field_msg_.magnetic_field.y = mag[1];
@@ -764,6 +769,7 @@ void ImuNode::SetRosServicesAndTopics(ros::NodeHandle &imu_node_handle) {
   accel_pub_ =
       imu_node_handle.advertise<geometry_msgs::AccelWithCovarianceStamped>(
           "acceleration", 100);
+  rpy_pub_ = imu_node_handle.advertise<geometry_msgs::Pose>("rpy", 100);
   twist_pub_ =
       imu_node_handle.advertise<geometry_msgs::TwistWithCovarianceStamped>(
           "twist", 100);
