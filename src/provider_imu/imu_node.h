@@ -157,13 +157,13 @@ class ImuNode {
    */
   sensor_msgs::Imu imu_msg_;
   geometry_msgs::AccelWithCovarianceStamped accel_msg_;
-  geometry_msgs::Pose rpy_msg_;
+  geometry_msgs::Pose quat_msg_;
   geometry_msgs::TwistWithCovarianceStamped twist_msg_;
   sensor_msgs::MagneticField magnetic_field_msg_;
 
   ros::Publisher imu_pub_;
   ros::Publisher accel_pub_;
-  ros::Publisher rpy_pub_;
+  ros::Publisher quat_pub_;
   ros::Publisher twist_pub_;
   ros::Publisher magnetic_pub_;
   ros::Publisher is_calibrated_pub_;
