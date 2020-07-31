@@ -1,53 +1,97 @@
-[![S.O.N.I.A. Logo](http://sonia.etsmtl.ca/wp-content/uploads/logo.jpg)](http://sonia.etsmtl.ca/en/)
+# provider_imu
 
-[![Build Status](https://travis-ci.org/sonia-auv/provider_imu.svg?branch=develop)](https://travis-ci.org/sonia-auv/provider_imu)
+![Docker Image CI - Master Branch](https://github.com/sonia-auv/provider_imu/workflows/Docker%20Image%20CI%20-%20Master%20Branch/badge.svg)
+![Docker Image CI - Develop Branch](https://github.com/sonia-auv/provider_imu/workflows/Docker%20Image%20CI%20-%20Develop%20Branch/badge.svg?branch=develop)
+![GitHub release (latest by date)](https://img.shields.io/github/v/release/sonia-auv/provider_imu)
+![Average time to resolve an issue](https://isitmaintained.com/badge/resolution/sonia-auv/provider_imu.svg)
 
-:zap: *A software developed by S.O.N.I.A. team from ETS Montreal* :zap:
 
-## Installation
+*Please read the instructions and fill in the blanks*
 
-???
 
-## Launch
+One Paragraph of project description goes here
 
-???
+## Getting Started
 
-## Directory Structure
+Clone current project by using following command :
+```bash
+    git clone git@github.com:sonia-auv/provider_imu.git
+```
 
-???
+These instructions will get you a copy of the project up and running on your local machine for development and testing purposes. See deployment for notes on how to deploy the project on a live system.
 
-## Documentation
+**IMPORTANT :** *If you have just imported your repository, please follow the instructions in* [BOOTSTRAP.md](BOOTSTRAP.md) (Once the bootstrap completed, you can remove this comment from the README)
 
-Here the list of the non used function of the imu.
-The full documentation can be found in /ros_sonia_ws/src/provider_imu/docs/3DM-GX3-25 Single Byte Data Communications Protocol.pdf
+### Prerequisites
 
--Orientation matrix (0xC5)
--Orientation updated matrix (0xC6)
--Magnetometer vector (0xC5)
--Acceleration, Angular Rate & Orientation Matrix (0xC8)
--Write Accel Bias Correction (0xC9)
--Write Gyro Bias Correction (0xCA)
--Euler Angles and Angular Rates (0xCF)
--Temperatures (0xD1)
--Gyro Stabilized Acceleration, Angular Rate & Magnetometer (0xD2)
--DeltaAngle & DeltaVelocity & Magnetometer Vectors (0xD3)
--Update firmware (0xFD)
+First and foremost to run the module you will need to have [docker](https://www.docker.com/get-started?utm_source=google&utm_medium=cpc&utm_campaign=getstarted&utm_content=sitelink&utm_term=getstarted&utm_budget=growth&gclid=CjwKCAjw57b3BRBlEiwA1Imytuv9VRFX5Z0INBaD3JJNSUmadgQh7ZYWTw_r-yFn2S4XjZTsLbNnnBoCPsIQAvD_BwE) installed.
 
-## Contribute
+To validate your installation of docker, simply type in
 
-???
+```
+docker -v
+```
+
+If you receive an output in the likes of :
+```
+Docker version 19.03.5, build 633a0ea
+```
+
+It means you have it installed. If not follow instructions on how to install it for your OS.
+
+### Installing
+
+A step by step series of examples that tell you how to get a development env running
+
+Say what the step will be
+
+```
+Give the example
+```
+
+And repeat
+
+```
+until finished
+```
+
+End with an example of getting some data out of the system or using it for a little demo
+
+## Running the tests
+
+Explain how to run the automated tests for this system
+
+### Break down into end to end tests
+
+Explain what these tests test and why
+
+```
+Give an example
+```
+
+### And coding style tests
+
+Explain what these tests test and why
+
+```
+Give an example
+```
+
+## Deployment
+
+Add additional notes about how to deploy this on a live system
+
+## Built With
+
+Add additional project dependencies
+
+* [ROS](http://wiki.ros.org/) - ROS perceptionic framework
+
+
+## Versioning
+
+We use [SemVer](http://semver.org/) for versioning. For the versions available, see the [tags on this repository](https://github.com/your/project/tags).
 
 ## License
 
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+This project is licensed under the GNU License - see the [LICENSE](LICENSE) file for details

@@ -51,7 +51,7 @@
 #include <self_test/self_test.h>
 #include <sensor_msgs/Imu.h>
 #include <sensor_msgs/MagneticField.h>
-#include <sonia_msgs/AddOffset.h>
+#include <sonia_common/AddOffset.h>
 #include <std_msgs/Bool.h>
 #include <std_srvs/Empty.h>
 #include <tf/transform_datatypes.h>
@@ -117,8 +117,8 @@ class ImuNode {
   void GetCalibrationStatus(
       diagnostic_updater::DiagnosticStatusWrapper &status);
 
-  bool AddOffsetCallback(sonia_msgs::AddOffset::Request &req,
-                         sonia_msgs::AddOffset::Response &resp);
+  bool AddOffsetCallback(sonia_common::AddOffset::Request &req,
+                         sonia_common::AddOffset::Response &resp);
 
   bool CalibrateCallback(std_srvs::Empty::Request &req,
                          std_srvs::Empty::Response &resp);
