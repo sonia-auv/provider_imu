@@ -1,9 +1,9 @@
-# proc_actuators
+# provider_imu
 
-![Docker Image CI - Master Branch](https://github.com/sonia-auv/proc_actuators/workflows/Docker%20Image%20CI%20-%20Master%20Branch/badge.svg)
-![Docker Image CI - Develop Branch](https://github.com/sonia-auv/proc_actuators/workflows/Docker%20Image%20CI%20-%20Develop%20Branch/badge.svg?branch=develop)
-![GitHub release (latest by date)](https://img.shields.io/github/v/release/sonia-auv/proc_actuators)
-![Average time to resolve an issue](https://isitmaintained.com/badge/resolution/sonia-auv/proc_actuators.svg)
+![Docker Image CI - Master Branch](https://github.com/sonia-auv/provider_imu/workflows/Docker%20Image%20CI%20-%20Master%20Branch/badge.svg)
+![Docker Image CI - Develop Branch](https://github.com/sonia-auv/provider_imu/workflows/Docker%20Image%20CI%20-%20Develop%20Branch/badge.svg?branch=develop)
+![GitHub release (latest by date)](https://img.shields.io/github/v/release/sonia-auv/provider_imu)
+![Average time to resolve an issue](https://isitmaintained.com/badge/resolution/sonia-auv/provider_imu.svg)
 
 
 *Please read the instructions and fill in the blanks*
@@ -15,7 +15,7 @@ One Paragraph of project description goes here
 
 Clone current project by using following command :
 ```bash
-    git clone git@github.com:sonia-auv/proc_actuators.git
+    git clone git@github.com:sonia-auv/provider_imu.git
 ```
 
 These instructions will get you a copy of the project up and running on your local machine for development and testing purposes. See deployment for notes on how to deploy the project on a live system.
@@ -85,7 +85,7 @@ Add additional notes about how to deploy this on a live system
 
 Add additional project dependencies
 
-* [ROS](http://wiki.ros.org/) - ROS robotic framework
+* [ROS](http://wiki.ros.org/) - ROS perceptionic framework
 
 
 ## Versioning

@@ -1,4 +1,4 @@
-ARG BASE_IMAGE="docker.pkg.github.com/sonia-auv/sonia_messages/sonia_messages:x86-robot-latest"
+ARG BASE_IMAGE="docker.pkg.github.com/sonia-auv/sonia_common/sonia_common:x86-perception-feature-add-lib-atlas"
 
 FROM ${BASE_IMAGE}
 
@@ -7,7 +7,7 @@ USER root
 ARG BUILD_DATE
 ARG VERSION
 
-ENV NODE_NAME=proc_actuators
+ENV NODE_NAME=provider_imu
 
 LABEL net.etsmtl.sonia-auv.node.build-date=${BUILD_DATE}
 LABEL net.etsmtl.sonia-auv.node.version=${VERSION}
@@ -29,6 +29,7 @@ ENV SONIA_WS_SETUP=${SONIA_WS}/devel/setup.bash
 WORKDIR ${SONIA_WS}
 
 COPY . ${NODE_PATH}
+
 RUN bash -c "source ${ROS_WS_SETUP}; source ${BASE_LIB_WS_SETUP}; catkin_make"
 
 RUN chown -R ${SONIA_USER}: ${SONIA_WS}

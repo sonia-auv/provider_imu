@@ -31,7 +31,7 @@
  *  POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <lib_atlas/exceptions.h>
+#include <sonia_common/exceptions.h>
 #include <boost/format.hpp>
 #include <string>
 #include "imu_driver.h"
@@ -119,7 +119,7 @@ int main(int argc, char **argv) {
   try {
     std::string firmware = imu.GetFirmware();
     std::cout << "Firmware version is: " << firmware << std::endl;
-  } catch (const atlas::CorruptedDataException &e) {
+  } catch (const sonia_common::CorruptedDataException &e) {
     ROS_ERROR_STREAM(e.what());
   }
 
