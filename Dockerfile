@@ -1,4 +1,4 @@
-ARG BASE_IMAGE="docker.pkg.github.com/sonia-auv/sonia_common/sonia_common:x86-perception-feature-add-lib-atlas"
+ARG BASE_IMAGE="docker.pkg.github.com/sonia-auv/sonia_common/sonia_common:x86-perception-latest"
 
 FROM ${BASE_IMAGE}
 
