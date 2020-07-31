@@ -20,9 +20,9 @@
 
 #include "imu_driver.h"
 #include <fcntl.h>
-#include <lib_atlas/exceptions.h>
-#include <lib_atlas/io/formatter.h>
-#include <lib_atlas/macros.h>
+#include <sonia_common/exceptions.h>
+#include <sonia_common/io/formatter.h>
+#include <sonia_common/macros.h>
 #include <ros/ros.h>
 #include <termios.h>
 #include "poll.h"
@@ -121,7 +121,7 @@ void ImuDriver::OpenPort(const char *port_name) {
     }
 
     ATLAS_THROW(std::runtime_error,
-                atlas::Format("Unable to open serial port [{0}]. {1}. {2}",
+                sonia_common::Format("Unable to open serial port [{0}]. {1}. {2}",
                               port_name, strerror(errno), extra_msg));
   }
 
@@ -136,7 +136,7 @@ void ImuDriver::OpenPort(const char *port_name) {
   if (fcntl(file_descriptor_, F_SETLK, &fl) != 0)
     ATLAS_THROW(
         std::runtime_error,
-        atlas::Format(
+        sonia_common::Format(
             "Device {0} is already locked. Try 'lsof | grep {1}' to find "
             "other processes that currently have the port open.",
             port_name, port_name));
@@ -146,7 +146,7 @@ void ImuDriver::OpenPort(const char *port_name) {
   if (tcgetattr(file_descriptor_, &term) < 0)
     ATLAS_THROW(
         std::runtime_error,
-        atlas::Format(
+        sonia_common::Format(
             "Unable to get serial port attributes. The port you specified "
             "({0}) may not be a serial port.",
             port_name));
@@ -158,7 +158,7 @@ void ImuDriver::OpenPort(const char *port_name) {
   if (tcsetattr(file_descriptor_, TCSAFLUSH, &term) < 0)
     ATLAS_THROW(
         std::runtime_error,
-        atlas::Format(
+        sonia_common::Format(
             "Unable to set serial port attributes. The port you specified "
             "({0}) may not be a serial port.",
             port_name));  /// @todo tcsetattr returns true if at least one
@@ -191,7 +191,7 @@ void ImuDriver::ClosePort() {
     if (close(file_descriptor_) != 0)
       ATLAS_THROW(
           std::runtime_error,
-          atlas::Format("Unable to close serial port; [{0}]", strerror(errno)));
+          sonia_common::Format("Unable to close serial port; [{0}]", strerror(errno)));
     file_descriptor_ = -1;
   }
 }
@@ -482,7 +482,7 @@ void ImuDriver::ReceiveAccelAngrateMagOrientation(uint64_t *time, double *accel,
 
   try {
     Receive(CMD_ACCEL_ANGRATE_MAG_ORIENT, rep, sizeof(rep), 1000, &sys_time);
-  } catch (const atlas::CorruptedDataException &e) {
+  } catch (const sonia_common::CorruptedDataException &e) {
     ROS_ERROR_STREAM(e.what());
     return;
   }
@@ -587,7 +587,7 @@ int ImuDriver::Send(void *cmd, int cmd_len) {
   bytes = write(file_descriptor_, cmd, cmd_len);
   if (bytes < 0) {
     ATLAS_THROW(std::runtime_error,
-                atlas::Format("error writing to IMU [{0}]", strerror(errno)));
+                sonia_common::Format("error writing to IMU [{0}]", strerror(errno)));
   }
 
   if (bytes != cmd_len) {
@@ -619,7 +619,7 @@ static int read_with_timeout(int fd, void *buff, size_t count, int timeout) {
 
   if ((retval = poll(ufd, 1, timeout)) < 0) {
     ATLAS_THROW(std::runtime_error,
-                atlas::Format("poll failed  [{0}]", strerror(errno)));
+                sonia_common::Format("poll failed  [{0}]", strerror(errno)));
   }
 
   if (retval == 0) {
@@ -630,7 +630,7 @@ static int read_with_timeout(int fd, void *buff, size_t count, int timeout) {
 
   if (nbytes < 0) {
     ATLAS_THROW(std::runtime_error,
-                atlas::Format("read failed  [{0}]", strerror(errno)));
+                sonia_common::Format("read failed  [{0}]", strerror(errno)));
   }
 
   return nbytes;
@@ -669,7 +669,7 @@ int ImuDriver::Receive(uint8_t command, void *rep, int rep_len, int timeout,
 
     if (nbytes < 0) {
       ATLAS_THROW(std::runtime_error,
-                  atlas::Format("read failed  [{0}]", strerror(errno)));
+                  sonia_common::Format("read failed  [{0}]", strerror(errno)));
     }
 
     bytes += nbytes;
@@ -695,7 +695,7 @@ int ImuDriver::Receive(uint8_t command, void *rep, int rep_len, int timeout,
           printf("%d:  %s\n", i, str[i]);
       }
 
-    ATLAS_THROW(atlas::CorruptedDataException,
+    ATLAS_THROW(sonia_common::CorruptedDataException,
                 "invalid checksum.\n Make sure the IMU sensor is connected to "
                         "this computer.");
 
@@ -774,7 +774,7 @@ std::string ImuDriver::GetFirmware() {
     ATLAS_THROW(std::runtime_error, "Wrong command receive from the IMU");
   } else if (checksum != details::bswap_16(
                              *(uint16_t *)((uint8_t *)rep + sizeof(rep) - 2))) {
-    ATLAS_THROW(atlas::CorruptedDataException,
+    ATLAS_THROW(sonia_common::CorruptedDataException,
                 "invalid checksum.\n Something went wrong.");
   } else {
     version = rep[1];

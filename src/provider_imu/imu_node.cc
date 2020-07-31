@@ -36,7 +36,7 @@
  */
 
 #include "provider_imu/imu_node.h"
-#include <lib_atlas/exceptions.h>
+#include <sonia_common/exceptions.h>
 #include <ros/ros.h>
 
 namespace provider_imu {
@@ -606,8 +606,8 @@ void ImuNode::GetCalibrationStatus(
 
 //------------------------------------------------------------------------------
 //
-bool ImuNode::AddOffsetCallback(sonia_msgs::AddOffset::Request &req,
-                                sonia_msgs::AddOffset::Response &resp) {
+bool ImuNode::AddOffsetCallback(sonia_common::AddOffset::Request &req,
+                                sonia_common::AddOffset::Response &resp) {
   double offset = req.add_offset;
   offset_ += offset;
 
