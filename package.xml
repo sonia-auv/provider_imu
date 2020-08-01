@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <package>
   <name>provider_imu</name>
-  <version>1.1.0</version>
+  <version>1.1.1</version>
   <description>The provider_imu package provide the raw data from the GX3 Imu</description>
 
   <author>Thibaut Mattio</author>
