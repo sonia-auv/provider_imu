@@ -16,8 +16,9 @@ public:
     Serial(std::string port);
     ~Serial();
 
-    ssize_t receive(char* data, size_t count);
-    ssize_t transmit(const char* data, size_t string_length);
+    std::string receive(size_t count);
+    void flush();
+    ssize_t transmit(const std::string data);
 
 private:
 

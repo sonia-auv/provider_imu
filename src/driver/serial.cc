@@ -37,7 +37,7 @@ Serial::Serial(std::string port)
     options.c_cflag &= ~CRTSCTS;
 
     //Input Flags
-    options.c_iflag     &= ~IGNBRK;
+    options.c_iflag &= ~IGNBRK;
     options.c_iflag &= ~(IXON | IXOFF | IXANY);
 
     //Local Flags
@@ -55,15 +55,24 @@ Serial::~Serial()
     close(fd);
 }
 
-ssize_t Serial::receive(char* data, size_t count)
+std::string Serial::receive(size_t count)
 {
-    ROS_DEBUG("interface_rs485 receive data");
+    ROS_DEBUG("provider_imu receive data");
+    char data[1024];
+    data[0] = 0;
 
-    return read(fd, data, count);
+    read(fd, data, count);
+    return String(data);
 }
 
-ssize_t Serial::transmit(const char* data, size_t string_length)
+void Serial::flush()
 {
-    ROS_DEBUG("interface_rs485 transmit data");
-    return write(fd, data, string_length);
+    ROS_DEBUG("provider_imu flush data");
+    tcflush(fd,TCIOFLUSH);
+}
+
+ssize_t Serial::transmit(const std::string data)
+{
+    ROS_DEBUG("provider_imu transmit data");
+    return write(fd, data.c_str(), data.size());
 }

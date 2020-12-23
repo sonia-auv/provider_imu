@@ -1,174 +1,232 @@
-#include "interface_rs485_node.h"
+#include "provider_imu_node.h"
 #include <ros/ros.h>
 #include <thread>
 #include <mutex>
 
 
-namespace interface_rs485
+namespace provider_IMU
 {
 
     // node Construtor
-    InterfaceRs485Node::InterfaceRs485Node(const ros::NodeHandlePtr &_nh)
-    : nh(_nh), configuration(_nh), serialConnection(configuration.getTtyPort()), sleepTime(configuration.getSleepTime())
+    ProviderIMUNode::ProviderIMUNode(const ros::NodeHandlePtr &_nh)
+    : nh(_nh), configuration(_nh), serialConnection(configuration.getTtyPort()))
     {
-        publisher = nh->advertise<sonia_common::SendRS485Msg>("/interface_rs485/dataTx", 100);
-        subscriber = nh->subscribe("/interface_rs485/dataRx", 100, &InterfaceRs485Node::receiveData, this);
-
-        reader = std::thread(std::bind(&InterfaceRs485Node::readData, this));
-        writer = std::thread(std::bind(&InterfaceRs485Node::writeData, this));
-        parser = std::thread(std::bind(&InterfaceRs485Node::parseData, this));
+        publisher = nh->advertise<sonia_common::ImuInformation>("/provider_imu/imu_info", 100);
+        tare_srv = nh->advertiseService("/provider_imu/tare", 100, &ProviderIMUNode::tare, this);
+        disturbance_srv = nh->advertiseService("/provider_imu/disturbance", 100, &ProviderIMUNode::disturbance, this);
+        reset_srv = nh->advertiseService("/provider_imu/reset_settings", 100, &ProviderIMUNode::reset_settings, this);
     }
 
     // node destructor
-    InterfaceRs485Node::~InterfaceRs485Node()
+    ProviderIMUNode::~ProviderIMUNode()
     {
         subscriber.shutdown();
     }
 
     // node spin
-    void InterfaceRs485Node::Spin()
+    void ProviderIMUNode::Spin()
     {
-        ros::Rate r(50);
+        ros::Rate r(40);
         while(ros::ok())
         {
             ros::spinOnce();
-
+            send_information();
             r.sleep();
         }
     }
 
-    //calculate the checksum
-    uint16_t InterfaceRs485Node::calculateCheckSum(uint8_t slave, uint8_t cmd, uint8_t nbByte, std::vector<uint8_t> data)
+    /**
+     * @brief calculate the checksum for a data string
+     * 
+     * @param data the string to calculate the checksum
+     * @return uint8_t the checksum value
+     */
+    uint8_t ProviderIMUNode::calculateCheckSum(std::string data)
     {
-        uint16_t check = (uint16_t)(0x3A+slave+cmd+nbByte+0x0D);
-        for(uint8_t i = 0; i < nbByte; i++)
+        uint8_t xor = 0;
+
+        for(int i = 1; i < data.size(); i++)
+            xor ^= data[i];
+        
+        return xor;
+    }
+
+    /**
+     * @brief append the checksum at the end of the string data. 
+     *        ex: $VNTAR -> $VNTAR*5F
+     * 
+     * @param data the string to append the checksum
+     */
+    void ProviderIMUNode::appendChecksum(std::string& data)
+    {
+        uint8_t checksum = calculateCheckSum(data);
+        data << "*" << std::hex << checksum;
+    }
+
+    /**
+     * @brief tare the IMU
+     * 
+     * @param tare contains the tare service
+     */
+    void ProviderIMUNode::tare(const sonia_common::ImuTare::ConstPtr &tare)
+    {
+        serialConnection.transmit("$VNTAR*5F");
+        ros::Duration(0.1).sleep();
+
+        ROS_INFO("IMU tare finished");
+    }
+
+    /**
+     * @brief set the disturbance for the accelometer and magnetometer
+     * 
+     * @param disturbance contains the disturbance service
+     */
+    void ProviderIMUNode::disturbance(const sonia_common::ImuDisturbance::ConstPtr &disturbance)
+    {
+        std::string magneticDisturbanceCommand = std::string("$VNKMD");
+        std::string accelerationDisturbanceCommand = std::string("$VNKAD");
+
+        magneticDisturbanceCommand << "," << disturbance.magnetometerDisturbance;
+        accelerationDisturbanceCommand << "," << disturbance.accelerationDisturbance;
+
+        appendChecksum(magneticDisturbanceCommand);
+        appendChecksum(accelerationDisturbanceCommand);
+
+        serialConnection.transmit(magneticDisturbanceCommand);
+        ros::Duration(0.1).sleep();
+        serialConnection.transmit(accelerationDisturbanceCommand);
+        ros::Duration(0.1).sleep();
+
+        ROS_INFO("IMU set disturbance settings finished");
+    }
+
+    /**
+     * @brief reset all the settings
+     * 
+     * @param settings contains the settings service
+     */
+    void ProviderIMUNode::reset_settings(const sonia_common::ImuResetSettings::ConstPtr &settings)
+    {
+        std::string line;
+        ifstream inputFile(configuration.getSettingsFile());
+
+        if (!inputFile)
         {
-            check += (uint8_t)data[i];
+            ROS_ERROR("IMU unable to open the file %s", configuration.getSettingsFile().c_str());
         }
 
-        return check;
-    }
-
-    uint16_t InterfaceRs485Node::calculateCheckSum(uint8_t slave, uint8_t cmd, uint8_t nbByte, char* data)
-    {
-        uint16_t check = (uint16_t)(0x3A+slave+cmd+nbByte+0x0D);
-        for(uint8_t i = 0; i < nbByte; i++)
+        else
         {
-            check += (uint8_t)data[i];
-        }
+            // factory reset
+            serialConnection.transmit("$VNRFS*5F");
+            ros::Duration(1).sleep();
 
-        return check;
-    }
-
-    //callback when the subscriber receive data
-    void InterfaceRs485Node::receiveData(const sonia_common::SendRS485Msg::ConstPtr &receivedData)
-    {
-        ROS_DEBUG("receive a rs485 data");
-        writerQueue.push_back(receivedData);
-    }
-
-    // thread to read the data in the serial port and push it to the parseQueue
-    void InterfaceRs485Node::readData()
-    {
-        ROS_INFO("begin the read data threads");
-        const int dataReadChunk = configuration.getDataReadChunk();
-        char data[dataReadChunk];
-        while(!ros::isShuttingDown())
-        {
-            ros::Duration(sleepTime).sleep();
-            ssize_t str_len = serialConnection.receive(data, dataReadChunk);
-
-            if(str_len != -1)
+            while (inputFile)
             {
-                for(ssize_t i = 0; i < str_len; i++)
-                {
-                    parseQueue.push_back((uint8_t) data[i]);
-                }
+                std::getline(inputFile, line);
+                
+                appendChecksum(line);
+                serialConnection.transmit(line);
+                ros::Duration(0.1).sleep();
             }
+            serialConnection.transmit("$VNWNV*57");
+            ros::Duration(0.1).sleep();
+            serialConnection.transmit("$VNRST*4D");
+            ros::Duration(0.1).sleep();
+            ROS_INFO("IMU settings reset finished");
         }
+
+        inputFile.close();
     }
 
-    // thread to write the data in the serial port
-    void InterfaceRs485Node::writeData()
+    /**
+     * @brief send the imu information.
+     * 
+     */
+    void ProviderIMUNode::send_information()
     {
-        ROS_INFO("begin the write data threads");
-        while(!ros::isShuttingDown())
-        {
-            ros::Duration(sleepTime).sleep();
-            while(!writerQueue.empty())
-            {
-                sonia_common::SendRS485Msg::ConstPtr msg_ptr = writerQueue.get_n_pop_front();
+        sonia_common::ImuInformation msg;
+        std::string buffer = "";
+        std::string parameter = "";
 
-                size_t data_size = msg_ptr->data.size() + 7;
-                uint8_t data[data_size];
-                data[0] = 0x3A;
-                data[1] = msg_ptr->slave;
-                data[2] = msg_ptr->cmd;
-                data[3] = (uint8_t)msg_ptr->data.size();
+        serialConnection.flush();
+        
+        // filter status information
+        serialConnection.transmit("$VNRRG,42*75");
+        buffer = serialConnection.receive(1024);
+        stringstream ss(buffer);
 
-                for(int i = 0; i < data[3]; i++)
-                {
-                    data[i+4] = msg_ptr->data[i];
-                }
+        std::getline(ss, parameter, ",");
+        std::getline(ss, parameter, ",");
+        
+        std::getline(ss, parameter, ",");
+        msg.filterStatus = std::stoul(parameter, 0, 16);
+        
+        std::getline(ss, parameter, ",");
+        msg.yawUncertainty = std::stof(parameter);
 
-                uint16_t checksum = calculateCheckSum(data[1], data[2], data[3], (char*) &data[4]);
+        std::getline(ss, parameter, ",");
+        msg.pitchUncertainty = std::stof(parameter);
 
-                data[data_size-3] = (uint8_t)(checksum >> 8);
-                data[data_size-2] = (uint8_t)(checksum & 0xFF);
-                data[data_size-1] = 0x0D;
+        std::getline(ss, parameter, ",");
+        msg.rollUncertainty = std::stof(parameter);
 
-                ROS_DEBUG("%0x\n%0x\n%0x\n%0x\n%0x\n%0x\n%0x\n%0x\n", data[0],data[1],data[2],data[3],data[4],data[5],data[6],data[7]);
+        std::getline(ss, parameter, ",");
+        msg.gyroBiasUncertainty = std::stof(parameter);
 
-                serialConnection.transmit((const char*)data, data_size);
-            }
-        }
-    }
+        std::getline(ss, parameter, ",");
+        msg.magUncertainty = std::stof(parameter);
 
-    // thread to parse the data
-    void InterfaceRs485Node::parseData()
-    {
-        ROS_INFO("begin the parse data threads");
-        while(!ros::isShuttingDown())
-        {
-            ros::Duration(sleepTime).sleep();
-            //read until the start there or the queue is empty
-            while(!parseQueue.empty())
-            {
-                if(parseQueue.front() != 0x3A)
-                {
-                    parseQueue.pop_front();
-                }
-                else
-                {
-                    sonia_common::SendRS485Msg msg = sonia_common::SendRS485Msg();
+        std::getline(ss, parameter, ",");
+        msg.accelUncertainty = std::stof(parameter);
 
-                    //pop the unused start data
-                    parseQueue.pop_front();
+        // quaternion, magnetic, acceleration and angular rates information
+        serialConnection.transmit("$VNRRG,15*77");
+        buffer = serialConnection.receive(1024);
+        stringstream ss(buffer);
 
-                    msg.slave = parseQueue.get_n_pop_front();
-                    msg.cmd = parseQueue.get_n_pop_front();
-                    unsigned char nbByte = parseQueue.get_n_pop_front();
+        std::getline(ss, parameter, ",");
+        std::getline(ss, parameter, ",");
 
-                    for(int i = 0; i < nbByte; i++)
-                    {
-                        msg.data.push_back(parseQueue.get_n_pop_front());
-                    }
+        std::getline(ss, parameter, ",");
+        msg.quaternion.x = std::stof(parameter);
 
-                    uint16_t checksum = (uint16_t)(parseQueue.get_n_pop_front()<<8);
-                    checksum += parseQueue.get_n_pop_front();
+        std::getline(ss, parameter, ",");
+        msg.quaternion.y = std::stof(parameter);
 
-                    //pop the unused end data
-                    parseQueue.pop_front();
+        std::getline(ss, parameter, ",");
+        msg.quaternion.z = std::stof(parameter);
 
-                    uint16_t calc_checksum = calculateCheckSum(msg.slave, msg.cmd, nbByte, msg.data);
+        std::getline(ss, parameter, ",");
+        msg.quaternion.w = std::stof(parameter);
 
-                    // if the checksum is bad, drop the packet
-                    if(checksum == calc_checksum)
-                    {
-                        publisher.publish(msg);
-                    }
-                }
-            }
-        }
+        std::getline(ss, parameter, ",");
+        msg.magnetometer.x = std::stof(parameter);
+
+        std::getline(ss, parameter, ",");
+        msg.magnetometer.y = std::stof(parameter);
+
+        std::getline(ss, parameter, ",");
+        msg.magnetometer.z = std::stof(parameter);
+
+        std::getline(ss, parameter, ",");
+        msg.acceleration.linear.x = std::stof(parameter);
+
+        std::getline(ss, parameter, ",");
+        msg.acceleration.linear.y = std::stof(parameter);
+
+        std::getline(ss, parameter, ",");
+        msg.acceleration.linear.z = std::stof(parameter);
+
+        std::getline(ss, parameter, ",");
+        msg.acceleration.angular.x = std::stof(parameter);
+        
+        std::getline(ss, parameter, ",");
+        msg.acceleration.angular.y = std::stof(parameter);
+        
+        std::getline(ss, parameter, ",");
+        msg.acceleration.angular.z = std::stof(parameter);
+
+        publisher.publish(msg)
     }
 }

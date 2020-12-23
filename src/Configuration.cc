@@ -9,9 +9,8 @@ namespace interface_rs485
 
     Configuration::Configuration(const ros::NodeHandlePtr &nh)
         : nh(nh),
-          ttyPort("/dev/RS485"),
-          sleepTime(0.1),
-          dataReadChunk(8192)
+          ttyPort("/dev/IMU"),
+          settingsFile("settings.txt")
     {
         Deserialize();
     }
@@ -23,18 +22,17 @@ namespace interface_rs485
         ROS_INFO("Deserialize params");
 
         FindParameter("/connection/tty_port", ttyPort);
-        FindParameter("/data/sleep_time", sleepTime);
-        FindParameter("/data/read_chunk", dataReadChunk);
+        FindParameter("/settings/setting_file", settingsFile);
 
         ROS_INFO("End deserialize params");
     }
 
     template <typename TType>
     void Configuration::FindParameter(const std::string &paramName, TType &attribute) {
-        if (nh->hasParam("/interface_rs485" + paramName)) {
-            nh->getParam("/interface_rs485" + paramName, attribute);
+        if (nh->hasParam("/provider_imu" + paramName)) {
+            nh->getParam("/provider_imu" + paramName, attribute);
         } else {
-            ROS_WARN_STREAM("Did not find /interface_rs485" + paramName
+            ROS_WARN_STREAM("Did not find /provider_imu" + paramName
                                     << ". Using default.");
         }
     }

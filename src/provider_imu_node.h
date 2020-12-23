@@ -3,45 +3,40 @@
 
 #include "driver/serial.h"
 
-#include <sonia_common/SendRS485Msg.h>
+#include <sonia_common/ImuInformation.h>
+#include <sonia_common/ImuTare.h>
+#include <sonia_common/ImuDisturbance.h>
+#include <sonia_common/ImuResetSettings.h>
 #include <ros/ros.h>
 #include <string>
 #include <thread>
 #include <sharedQueue.h>
 #include "Configuration.h"
 
-namespace interface_rs485
+namespace provider_IMU
 {
-    class InterfaceRs485Node
+    class ProviderIMUNode
     {
     public:
 
-        InterfaceRs485Node(const ros::NodeHandlePtr &_nh);
-        ~InterfaceRs485Node();
+        ProviderIMUNode(const ros::NodeHandlePtr &_nh);
+        ~ProviderIMUNode();
 
         void Spin();
 
     private:
-	Configuration configuration;
+	    Configuration configuration;
 
-        uint16_t calculateCheckSum(uint8_t slave, uint8_t cmd, uint8_t nbByte, std::vector<uint8_t> data);
-        uint16_t calculateCheckSum(uint8_t slave, uint8_t cmd, uint8_t nbByte, char* data);
+        uint8_t calculateCheckSum(uint8_t nbByte, std::vector<uint8_t> data);
+        uint8_t calculateCheckSum(uint8_t nbByte, char* data);
 
-        void receiveData(const sonia_common::SendRS485Msg::ConstPtr &receivedData);
-        void readData();
-        void writeData();
-        void parseData();
-
-        double sleepTime;
+        void tare(const sonia_common::ImuTare::ConstPtr &tare);
+        void disturbance(const sonia_common::ImuDisturbance::ConstPtr &disturbance);
+        void reset_settings(const sonia_common::ImuResetSettings::ConstPtr &settings);
+        void send_information();
 
         ros::NodeHandlePtr nh;
         Serial serialConnection;
-        std::thread reader;
-        std::thread writer;
-        std::thread parser;
-
-        SharedQueue<sonia_common::SendRS485Msg::ConstPtr> writerQueue;
-        SharedQueue<uint8_t> parseQueue;
 
         ros::Subscriber subscriber;
         ros::Publisher publisher;

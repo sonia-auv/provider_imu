@@ -27,8 +27,7 @@ namespace interface_rs485
         ros::NodeHandlePtr nh;
 
         std::string ttyPort;
-        double sleepTime;
-        int dataReadChunk;
+        std::string settingsFile;
 
         void Deserialize();
         void SetParameter();
