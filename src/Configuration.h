@@ -9,7 +9,7 @@
 #include <cmath>
 #include <ros/ros.h>
 
-namespace interface_rs485
+namespace provider_IMU
 {
     class Configuration {
 
@@ -19,8 +19,7 @@ namespace interface_rs485
         ~Configuration();
 
         std::string getTtyPort() const {return ttyPort;}
-        double getSleepTime() const {return sleepTime;}
-        int getDataReadChunk() const {return dataReadChunk;}
+        std::string getSettingsFile() const {return settingsFile;}
 
     private:
 

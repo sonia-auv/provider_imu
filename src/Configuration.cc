@@ -4,7 +4,7 @@
 
 #include "Configuration.h"
 
-namespace interface_rs485
+namespace provider_IMU
 {
 
     Configuration::Configuration(const ros::NodeHandlePtr &nh)

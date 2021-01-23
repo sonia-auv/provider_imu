@@ -1,26 +1,25 @@
 #include "provider_imu_node.h"
 #include <ros/ros.h>
-#include <thread>
-#include <mutex>
-
+#include <fstream>
+#include <sstream>
 
 namespace provider_IMU
 {
 
     // node Construtor
     ProviderIMUNode::ProviderIMUNode(const ros::NodeHandlePtr &_nh)
-    : nh(_nh), configuration(_nh), serialConnection(configuration.getTtyPort()))
+    : nh(_nh), configuration(_nh), serialConnection(configuration.getTtyPort())
     {
         publisher = nh->advertise<sonia_common::ImuInformation>("/provider_imu/imu_info", 100);
-        tare_srv = nh->advertiseService("/provider_imu/tare", 100, &ProviderIMUNode::tare, this);
-        disturbance_srv = nh->advertiseService("/provider_imu/disturbance", 100, &ProviderIMUNode::disturbance, this);
-        reset_srv = nh->advertiseService("/provider_imu/reset_settings", 100, &ProviderIMUNode::reset_settings, this);
+        tare_srv = nh->advertiseService("/provider_imu/tare", &ProviderIMUNode::tare, this);
+        disturbance_srv = nh->advertiseService("/provider_imu/disturbance", &ProviderIMUNode::disturbance, this);
+        reset_srv = nh->advertiseService("/provider_imu/reset_settings", &ProviderIMUNode::reset_settings, this);
     }
 
     // node destructor
     ProviderIMUNode::~ProviderIMUNode()
     {
-        subscriber.shutdown();
+
     }
 
     // node spin
@@ -43,12 +42,12 @@ namespace provider_IMU
      */
     uint8_t ProviderIMUNode::calculateCheckSum(std::string data)
     {
-        uint8_t xor = 0;
+        uint8_t check = 0;
 
         for(int i = 1; i < data.size(); i++)
-            xor ^= data[i];
+            check ^= data[i];
         
-        return xor;
+        return check;
     }
 
     /**
@@ -59,8 +58,10 @@ namespace provider_IMU
      */
     void ProviderIMUNode::appendChecksum(std::string& data)
     {
+        std::stringstream ss;
         uint8_t checksum = calculateCheckSum(data);
-        data << "*" << std::hex << checksum;
+        ss << data << std::string("*") << std::hex << checksum;
+        data = ss.str();
     }
 
     /**
@@ -68,12 +69,13 @@ namespace provider_IMU
      * 
      * @param tare contains the tare service
      */
-    void ProviderIMUNode::tare(const sonia_common::ImuTare::ConstPtr &tare)
+    bool ProviderIMUNode::tare(sonia_common::ImuTare::Request &tareRsq, sonia_common::ImuTare::Response &tareRsp)
     {
         serialConnection.transmit("$VNTAR*5F");
         ros::Duration(0.1).sleep();
 
         ROS_INFO("IMU tare finished");
+        return true;
     }
 
     /**
@@ -81,13 +83,13 @@ namespace provider_IMU
      * 
      * @param disturbance contains the disturbance service
      */
-    void ProviderIMUNode::disturbance(const sonia_common::ImuDisturbance::ConstPtr &disturbance)
+    bool ProviderIMUNode::disturbance(sonia_common::ImuDisturbance::Request &disturbanceRsq, sonia_common::ImuDisturbance::Response &disturbanceRsp)
     {
-        std::string magneticDisturbanceCommand = std::string("$VNKMD");
-        std::string accelerationDisturbanceCommand = std::string("$VNKAD");
+        std::string magneticDisturbanceCommand = std::string("$VNKMD,");
+        std::string accelerationDisturbanceCommand = std::string("$VNKAD,");
 
-        magneticDisturbanceCommand << "," << disturbance.magnetometerDisturbance;
-        accelerationDisturbanceCommand << "," << disturbance.accelerationDisturbance;
+        magneticDisturbanceCommand += disturbanceRsq.magnetometerDisturbance ? std::string("1") : std::string("0");
+        accelerationDisturbanceCommand += disturbanceRsq.accelerationDisturbance ? std::string("1") : std::string("0");
 
         appendChecksum(magneticDisturbanceCommand);
         appendChecksum(accelerationDisturbanceCommand);
@@ -98,6 +100,7 @@ namespace provider_IMU
         ros::Duration(0.1).sleep();
 
         ROS_INFO("IMU set disturbance settings finished");
+        return true;
     }
 
     /**
@@ -105,10 +108,10 @@ namespace provider_IMU
      * 
      * @param settings contains the settings service
      */
-    void ProviderIMUNode::reset_settings(const sonia_common::ImuResetSettings::ConstPtr &settings)
+    bool ProviderIMUNode::reset_settings(sonia_common::ImuResetSettings::Request &settingsRsq, sonia_common::ImuResetSettings::Response &settingsRsp)
     {
         std::string line;
-        ifstream inputFile(configuration.getSettingsFile());
+        std::ifstream inputFile(configuration.getSettingsFile());
 
         if (!inputFile)
         {
@@ -137,6 +140,7 @@ namespace provider_IMU
         }
 
         inputFile.close();
+        return true;
     }
 
     /**
@@ -154,79 +158,79 @@ namespace provider_IMU
         // filter status information
         serialConnection.transmit("$VNRRG,42*75");
         buffer = serialConnection.receive(1024);
-        stringstream ss(buffer);
+        std::stringstream ss(buffer);
 
-        std::getline(ss, parameter, ",");
-        std::getline(ss, parameter, ",");
+        std::getline(ss, parameter, ',');
+        std::getline(ss, parameter, ',');
         
-        std::getline(ss, parameter, ",");
+        std::getline(ss, parameter, ',');
         msg.filterStatus = std::stoul(parameter, 0, 16);
         
-        std::getline(ss, parameter, ",");
+        std::getline(ss, parameter, ',');
         msg.yawUncertainty = std::stof(parameter);
 
-        std::getline(ss, parameter, ",");
+        std::getline(ss, parameter, ',');
         msg.pitchUncertainty = std::stof(parameter);
 
-        std::getline(ss, parameter, ",");
+        std::getline(ss, parameter, ',');
         msg.rollUncertainty = std::stof(parameter);
 
-        std::getline(ss, parameter, ",");
+        std::getline(ss, parameter, ',');
         msg.gyroBiasUncertainty = std::stof(parameter);
 
-        std::getline(ss, parameter, ",");
+        std::getline(ss, parameter, ',');
         msg.magUncertainty = std::stof(parameter);
 
-        std::getline(ss, parameter, ",");
+        std::getline(ss, parameter, '*');
         msg.accelUncertainty = std::stof(parameter);
 
         // quaternion, magnetic, acceleration and angular rates information
         serialConnection.transmit("$VNRRG,15*77");
         buffer = serialConnection.receive(1024);
-        stringstream ss(buffer);
+        ss = std::stringstream(buffer);
 
-        std::getline(ss, parameter, ",");
-        std::getline(ss, parameter, ",");
+        std::getline(ss, parameter, ',');
+        std::getline(ss, parameter, ',');
 
-        std::getline(ss, parameter, ",");
+        std::getline(ss, parameter, ',');
         msg.quaternion.x = std::stof(parameter);
 
-        std::getline(ss, parameter, ",");
+        std::getline(ss, parameter, ',');
         msg.quaternion.y = std::stof(parameter);
 
-        std::getline(ss, parameter, ",");
+        std::getline(ss, parameter, ',');
         msg.quaternion.z = std::stof(parameter);
 
-        std::getline(ss, parameter, ",");
+        std::getline(ss, parameter, ',');
         msg.quaternion.w = std::stof(parameter);
 
-        std::getline(ss, parameter, ",");
+        std::getline(ss, parameter, ',');
         msg.magnetometer.x = std::stof(parameter);
 
-        std::getline(ss, parameter, ",");
+        std::getline(ss, parameter, ',');
         msg.magnetometer.y = std::stof(parameter);
 
-        std::getline(ss, parameter, ",");
+        std::getline(ss, parameter, ',');
         msg.magnetometer.z = std::stof(parameter);
 
-        std::getline(ss, parameter, ",");
+        std::getline(ss, parameter, ',');
         msg.acceleration.linear.x = std::stof(parameter);
 
-        std::getline(ss, parameter, ",");
+        std::getline(ss, parameter, ',');
         msg.acceleration.linear.y = std::stof(parameter);
 
-        std::getline(ss, parameter, ",");
+        std::getline(ss, parameter, ',');
         msg.acceleration.linear.z = std::stof(parameter);
 
-        std::getline(ss, parameter, ",");
+        std::getline(ss, parameter, ',');
         msg.acceleration.angular.x = std::stof(parameter);
         
-        std::getline(ss, parameter, ",");
+        std::getline(ss, parameter, ',');
         msg.acceleration.angular.y = std::stof(parameter);
         
-        std::getline(ss, parameter, ",");
+        std::getline(ss, parameter, '*');
         msg.acceleration.angular.z = std::stof(parameter);
 
-        publisher.publish(msg)
+        publisher.publish(msg);
     }
 }

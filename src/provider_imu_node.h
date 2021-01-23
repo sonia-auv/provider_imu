@@ -9,8 +9,6 @@
 #include <sonia_common/ImuResetSettings.h>
 #include <ros/ros.h>
 #include <string>
-#include <thread>
-#include <sharedQueue.h>
 #include "Configuration.h"
 
 namespace provider_IMU
@@ -27,18 +25,20 @@ namespace provider_IMU
     private:
 	    Configuration configuration;
 
-        uint8_t calculateCheckSum(uint8_t nbByte, std::vector<uint8_t> data);
-        uint8_t calculateCheckSum(uint8_t nbByte, char* data);
+        uint8_t calculateCheckSum(std::string data);
+        void appendChecksum(std::string& data);
 
-        void tare(const sonia_common::ImuTare::ConstPtr &tare);
-        void disturbance(const sonia_common::ImuDisturbance::ConstPtr &disturbance);
-        void reset_settings(const sonia_common::ImuResetSettings::ConstPtr &settings);
+        bool tare(sonia_common::ImuTare::Request &tareRsq, sonia_common::ImuTare::Response &tareRsp);
+        bool disturbance(sonia_common::ImuDisturbance::Request &disturbanceRsq, sonia_common::ImuDisturbance::Response &disturbanceRsp);
+        bool reset_settings(sonia_common::ImuResetSettings::Request &settingsRsq, sonia_common::ImuResetSettings::Response &settingsRsp);
         void send_information();
 
         ros::NodeHandlePtr nh;
         Serial serialConnection;
 
-        ros::Subscriber subscriber;
+        ros::ServiceServer tare_srv;
+        ros::ServiceServer disturbance_srv;
+        ros::ServiceServer reset_srv;
         ros::Publisher publisher;
     };
 }

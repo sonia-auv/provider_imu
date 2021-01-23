@@ -1,11 +1,11 @@
 #include <ros/ros.h>
-#include "interface_rs485_node.h"
+#include "provider_imu_node.h"
 
 int main(int argc, char **argv)
 {
-    ros::init(argc, argv, "interface_rs485");
+    ros::init(argc, argv, "provider_imu");
 
     ros::NodeHandlePtr nh(new ros::NodeHandle("~"));
-    interface_rs485::InterfaceRs485Node interface_node{nh};
+    provider_IMU::ProviderIMUNode interface_node{nh};
     interface_node.Spin();
 }

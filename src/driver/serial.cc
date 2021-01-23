@@ -62,7 +62,7 @@ std::string Serial::receive(size_t count)
     data[0] = 0;
 
     read(fd, data, count);
-    return String(data);
+    return std::string(data);
 }
 
 void Serial::flush()
