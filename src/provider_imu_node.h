@@ -27,6 +27,7 @@ namespace provider_IMU
 
         uint8_t calculateCheckSum(std::string data);
         void appendChecksum(std::string& data);
+        bool confirmChecksum(std::string& data);
 
         bool tare(sonia_common::ImuTare::Request &tareRsq, sonia_common::ImuTare::Response &tareRsp);
         bool disturbance(sonia_common::ImuDisturbance::Request &disturbanceRsq, sonia_common::ImuDisturbance::Response &disturbanceRsp);

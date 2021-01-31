@@ -44,7 +44,7 @@ namespace provider_IMU
     {
         uint8_t check = 0;
 
-        for(int i = 1; i < data.size(); i++)
+        for(unsigned int i = 1; i < data.size(); i++)
             check ^= data[i];
         
         return check;
@@ -62,6 +62,19 @@ namespace provider_IMU
         uint8_t checksum = calculateCheckSum(data);
         ss << data << std::string("*") << std::hex << checksum;
         data = ss.str();
+    }
+
+    /**
+     * @brief confirm the checksum of a transmission string
+     * 
+     * @param data the string to confirm
+     */
+    bool ProviderIMUNode::confirmChecksum(std::string& data)
+    {
+        std::string checksumData = data.substr(0, data.find("*", 0));
+        uint8_t calculatedChecksum = calculateCheckSum(checksumData);
+        uint8_t originalChecksum = std::stoi(data.substr(data.find("*", 0)+1), 0, 16);
+        return originalChecksum == calculatedChecksum;
     }
 
     /**
@@ -158,79 +171,85 @@ namespace provider_IMU
         // filter status information
         serialConnection.transmit("$VNRRG,42*75");
         buffer = serialConnection.receive(1024);
-        std::stringstream ss(buffer);
+        if(confirmChecksum(buffer))
+        {
+            std::stringstream ss(buffer);
 
-        std::getline(ss, parameter, ',');
-        std::getline(ss, parameter, ',');
-        
-        std::getline(ss, parameter, ',');
-        msg.filterStatus = std::stoul(parameter, 0, 16);
-        
-        std::getline(ss, parameter, ',');
-        msg.yawUncertainty = std::stof(parameter);
+            std::getline(ss, parameter, ',');
+            std::getline(ss, parameter, ',');
+            
+            std::getline(ss, parameter, ',');
+            msg.filterStatus = std::stoul(parameter, 0, 16);
+            
+            std::getline(ss, parameter, ',');
+            msg.yawUncertainty = std::stof(parameter);
 
-        std::getline(ss, parameter, ',');
-        msg.pitchUncertainty = std::stof(parameter);
+            std::getline(ss, parameter, ',');
+            msg.pitchUncertainty = std::stof(parameter);
 
-        std::getline(ss, parameter, ',');
-        msg.rollUncertainty = std::stof(parameter);
+            std::getline(ss, parameter, ',');
+            msg.rollUncertainty = std::stof(parameter);
 
-        std::getline(ss, parameter, ',');
-        msg.gyroBiasUncertainty = std::stof(parameter);
+            std::getline(ss, parameter, ',');
+            msg.gyroBiasUncertainty = std::stof(parameter);
 
-        std::getline(ss, parameter, ',');
-        msg.magUncertainty = std::stof(parameter);
+            std::getline(ss, parameter, ',');
+            msg.magUncertainty = std::stof(parameter);
 
-        std::getline(ss, parameter, '*');
-        msg.accelUncertainty = std::stof(parameter);
+            std::getline(ss, parameter, '*');
+            msg.accelUncertainty = std::stof(parameter);
+        }
 
         // quaternion, magnetic, acceleration and angular rates information
         serialConnection.transmit("$VNRRG,15*77");
         buffer = serialConnection.receive(1024);
-        ss = std::stringstream(buffer);
+        if(confirmChecksum(buffer))
+        {
+             std::stringstream ss(buffer);
 
-        std::getline(ss, parameter, ',');
-        std::getline(ss, parameter, ',');
+            std::getline(ss, parameter, ',');
+            std::getline(ss, parameter, ',');
 
-        std::getline(ss, parameter, ',');
-        msg.quaternion.x = std::stof(parameter);
+            std::getline(ss, parameter, ',');
+            msg.quaternion.x = std::stof(parameter);
 
-        std::getline(ss, parameter, ',');
-        msg.quaternion.y = std::stof(parameter);
+            std::getline(ss, parameter, ',');
+            msg.quaternion.y = std::stof(parameter);
 
-        std::getline(ss, parameter, ',');
-        msg.quaternion.z = std::stof(parameter);
+            std::getline(ss, parameter, ',');
+            msg.quaternion.z = std::stof(parameter);
 
-        std::getline(ss, parameter, ',');
-        msg.quaternion.w = std::stof(parameter);
+            std::getline(ss, parameter, ',');
+            msg.quaternion.w = std::stof(parameter);
 
-        std::getline(ss, parameter, ',');
-        msg.magnetometer.x = std::stof(parameter);
+            std::getline(ss, parameter, ',');
+            msg.magnetometer.x = std::stof(parameter);
 
-        std::getline(ss, parameter, ',');
-        msg.magnetometer.y = std::stof(parameter);
+            std::getline(ss, parameter, ',');
+            msg.magnetometer.y = std::stof(parameter);
 
-        std::getline(ss, parameter, ',');
-        msg.magnetometer.z = std::stof(parameter);
+            std::getline(ss, parameter, ',');
+            msg.magnetometer.z = std::stof(parameter);
 
-        std::getline(ss, parameter, ',');
-        msg.acceleration.linear.x = std::stof(parameter);
+            std::getline(ss, parameter, ',');
+            msg.acceleration.linear.x = std::stof(parameter);
 
-        std::getline(ss, parameter, ',');
-        msg.acceleration.linear.y = std::stof(parameter);
+            std::getline(ss, parameter, ',');
+            msg.acceleration.linear.y = std::stof(parameter);
 
-        std::getline(ss, parameter, ',');
-        msg.acceleration.linear.z = std::stof(parameter);
+            std::getline(ss, parameter, ',');
+            msg.acceleration.linear.z = std::stof(parameter);
 
-        std::getline(ss, parameter, ',');
-        msg.acceleration.angular.x = std::stof(parameter);
-        
-        std::getline(ss, parameter, ',');
-        msg.acceleration.angular.y = std::stof(parameter);
-        
-        std::getline(ss, parameter, '*');
-        msg.acceleration.angular.z = std::stof(parameter);
+            std::getline(ss, parameter, ',');
+            msg.acceleration.angular.x = std::stof(parameter);
+            
+            std::getline(ss, parameter, ',');
+            msg.acceleration.angular.y = std::stof(parameter);
+            
+            std::getline(ss, parameter, '*');
+            msg.acceleration.angular.z = std::stof(parameter);
 
-        publisher.publish(msg);
+            publisher.publish(msg);
+        }
     }
 }
