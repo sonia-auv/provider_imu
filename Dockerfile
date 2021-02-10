@@ -33,13 +33,13 @@ COPY . ${NODE_PATH}
 RUN bash -c "source ${ROS_WS_SETUP}; source ${BASE_LIB_WS_SETUP}; catkin_make"
 
 RUN chown -R ${SONIA_USER}: ${SONIA_WS}
+RUN usermod -a -G dialout ${SONIA_USER}
 USER ${SONIA_USER}
 
 RUN mkdir ${SCRIPT_DIR}
 RUN cat $ENTRYPOINT_ABSPATH > ${SCRIPT_DIR}/entrypoint.sh
 RUN echo "roslaunch --wait $LAUNCH_ABSPATH" > ${SCRIPT_DIR}/launch.sh
 
-RUN usermod -a -G dialout sonia
 RUN chmod +x ${SCRIPT_DIR}/entrypoint.sh && chmod +x ${SCRIPT_DIR}/launch.sh 
 
 RUN echo "source $SONIA_WS_SETUP" >> ~/.bashrc
