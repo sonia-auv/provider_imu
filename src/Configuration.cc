@@ -9,7 +9,7 @@ namespace provider_IMU
 
     Configuration::Configuration(const ros::NodeHandlePtr &nh)
         : nh(nh),
-          ttyPort("/dev/IMU"),
+          ttyPort("/dev/ttyUSB0"),
           settingsFile("settings.txt")
     {
         Deserialize();
