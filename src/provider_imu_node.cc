@@ -73,7 +73,7 @@ namespace provider_IMU
     {
         std::string checksumData = data.substr(0, data.find("*", 0));
         uint8_t calculatedChecksum = calculateCheckSum(checksumData);
-        uint8_t originalChecksum = std::stoi(data.substr(data.find("*", 0)+1), nullptr, 16);
+        uint8_t originalChecksum = std::stoi(data.substr(data.find("*", 0)+1, 2), nullptr, 16);
         return originalChecksum == calculatedChecksum;
     }
 
