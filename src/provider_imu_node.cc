@@ -84,7 +84,7 @@ namespace provider_IMU
      */
     bool ProviderIMUNode::tare(sonia_common::ImuTare::Request &tareRsq, sonia_common::ImuTare::Response &tareRsp)
     {
-        serialConnection.transmit("$VNTAR*5F");
+        serialConnection.transmit("$VNTAR*5F\n");
         ros::Duration(0.1).sleep();
 
         ROS_INFO("IMU tare finished");
@@ -106,6 +106,9 @@ namespace provider_IMU
 
         appendChecksum(magneticDisturbanceCommand);
         appendChecksum(accelerationDisturbanceCommand);
+
+        magneticDisturbanceCommand += std::string("\n");
+        accelerationDisturbanceCommand += std::string("\n");
 
         serialConnection.transmit(magneticDisturbanceCommand);
         ros::Duration(0.1).sleep();
@@ -134,7 +137,7 @@ namespace provider_IMU
         else
         {
             // factory reset
-            serialConnection.transmit("$VNRFS*5F");
+            serialConnection.transmit("$VNRFS*5F\n");
             ros::Duration(1).sleep();
 
             while (inputFile)
@@ -142,12 +145,13 @@ namespace provider_IMU
                 std::getline(inputFile, line);
                 
                 appendChecksum(line);
+                line += std::string("\n");
                 serialConnection.transmit(line);
                 ros::Duration(0.1).sleep();
             }
-            serialConnection.transmit("$VNWNV*57");
+            serialConnection.transmit("$VNWNV*57\n");
             ros::Duration(0.1).sleep();
-            serialConnection.transmit("$VNRST*4D");
+            serialConnection.transmit("$VNRST*4D\n");
             ros::Duration(0.1).sleep();
             ROS_INFO("IMU settings reset finished");
         }
@@ -169,9 +173,11 @@ namespace provider_IMU
         serialConnection.flush();
         
         // filter status information
-        serialConnection.transmit("$VNRRG,42*75");
+        serialConnection.transmit("$VNRRG,42*75\n");
+        ros::Duration(0.05).sleep();
         buffer = serialConnection.receive(1024);
-        if(confirmChecksum(buffer))
+        bool haveFilterStatus = confirmChecksum(buffer);
+        if(haveFilterStatus)
         {
             std::stringstream ss(buffer);
 
@@ -201,9 +207,11 @@ namespace provider_IMU
         }
 
         // quaternion, magnetic, acceleration and angular rates information
-        serialConnection.transmit("$VNRRG,15*77");
+        serialConnection.transmit("$VNRRG,15*77\n");
+        ros::Duration(0.05).sleep();
         buffer = serialConnection.receive(1024);
-        if(confirmChecksum(buffer))
+        bool haveData = confirmChecksum(buffer);
+        if(haveData)
         {
              std::stringstream ss(buffer);
 
@@ -248,7 +256,10 @@ namespace provider_IMU
             
             std::getline(ss, parameter, '*');
             msg.acceleration.angular.z = std::stof(parameter);
+        }
 
+        if(haveData && haveFilterStatus)
+        {
             publisher.publish(msg);
         }
     }
