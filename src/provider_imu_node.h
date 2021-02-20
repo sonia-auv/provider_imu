@@ -7,6 +7,7 @@
 #include <sonia_common/ImuTare.h>
 #include <sonia_common/ImuDisturbance.h>
 #include <sonia_common/ImuResetSettings.h>
+#include <sonia_common/KalmannInfo.h>
 #include <ros/ros.h>
 #include <string>
 #include "Configuration.h"
@@ -32,6 +33,7 @@ namespace provider_IMU
         bool tare(sonia_common::ImuTare::Request &tareRsq, sonia_common::ImuTare::Response &tareRsp);
         bool disturbance(sonia_common::ImuDisturbance::Request &disturbanceRsq, sonia_common::ImuDisturbance::Response &disturbanceRsp);
         bool reset_settings(sonia_common::ImuResetSettings::Request &settingsRsq, sonia_common::ImuResetSettings::Response &settingsRsp);
+        bool kalmann_info(sonia_common::KalmannInfo::Request &kalmannRsq, sonia_common::KalmannInfo::Response &kalmannRsp);
         void send_information();
 
         ros::NodeHandlePtr nh;
@@ -40,6 +42,7 @@ namespace provider_IMU
         ros::ServiceServer tare_srv;
         ros::ServiceServer disturbance_srv;
         ros::ServiceServer reset_srv;
+        ros::ServiceServer kalmann_srv;
         ros::Publisher publisher;
     };
 }
