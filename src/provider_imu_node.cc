@@ -161,6 +161,12 @@ namespace provider_IMU
         return true;
     }
 
+
+    /**
+     * @brief ask for the kalmann filter information
+     * 
+     * @param kalmannInfo contains the kanlmannInfo service
+     */
     bool ProviderIMUNode::kalmann_info(sonia_common::KalmannInfo::Request &kalmannRsq, sonia_common::KalmannInfo::Response &kalmannRsp)
     {
         std::string buffer = "";
@@ -270,6 +276,7 @@ namespace provider_IMU
             
             std::getline(ss, parameter, '*');
             msg.angular_velocity.z = std::stof(parameter);
+
             publisher.publish(msg);
         }
     }
