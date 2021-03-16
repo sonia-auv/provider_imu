@@ -276,7 +276,6 @@ namespace provider_IMU
             
             std::getline(ss, parameter, '*');
             msg.angular_velocity.z = std::stof(parameter);
-
             publisher.publish(msg);
         }
     }
