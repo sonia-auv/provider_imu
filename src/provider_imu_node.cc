@@ -10,10 +10,11 @@ namespace provider_IMU
     ProviderIMUNode::ProviderIMUNode(const ros::NodeHandlePtr &_nh)
     : nh(_nh), configuration(_nh), serialConnection(configuration.getTtyPort())
     {
-        publisher = nh->advertise<sonia_common::ImuInformation>("/provider_imu/imu_info", 100);
+        publisher = nh->advertise<sensor_msgs::Imu>("/provider_imu/imu_info", 100);
         tare_srv = nh->advertiseService("/provider_imu/tare", &ProviderIMUNode::tare, this);
         disturbance_srv = nh->advertiseService("/provider_imu/disturbance", &ProviderIMUNode::disturbance, this);
         reset_srv = nh->advertiseService("/provider_imu/reset_settings", &ProviderIMUNode::reset_settings, this);
+        kalmann_srv = nh->advertiseService("/provider_imu/kalmann_info", &ProviderIMUNode::kalmann_info, this);
     }
 
     // node destructor
@@ -160,106 +161,115 @@ namespace provider_IMU
         return true;
     }
 
+    bool ProviderIMUNode::kalmann_info(sonia_common::KalmannInfo::Request &kalmannRsq, sonia_common::KalmannInfo::Response &kalmannRsp)
+    {
+        std::string buffer = "";
+        std::string parameter = "";
+        bool haveFilterStatus = false;
+
+        serialConnection.flush();
+
+        serialConnection.transmit("$VNRRG,42*75\n");
+        ros::Duration(0.05).sleep();
+        buffer = serialConnection.receive(1024);
+        if(!buffer.empty())
+        {
+            haveFilterStatus = confirmChecksum(buffer);
+            if(haveFilterStatus)
+            {
+                std::stringstream ss(buffer);
+
+                std::getline(ss, parameter, ',');
+                std::getline(ss, parameter, ',');
+                
+                std::getline(ss, parameter, ',');
+                kalmannRsp.filterStatus = std::stoul(parameter, 0, 16);
+                
+                std::getline(ss, parameter, ',');
+                kalmannRsp.yawUncertainty = std::stof(parameter);
+
+                std::getline(ss, parameter, ',');
+                kalmannRsp.pitchUncertainty = std::stof(parameter);
+
+                std::getline(ss, parameter, ',');
+                kalmannRsp.rollUncertainty = std::stof(parameter);
+
+                std::getline(ss, parameter, ',');
+                kalmannRsp.gyroBiasUncertainty = std::stof(parameter);
+
+                std::getline(ss, parameter, ',');
+                kalmannRsp.magUncertainty = std::stof(parameter);
+
+                std::getline(ss, parameter, '*');
+                kalmannRsp.accelUncertainty = std::stof(parameter);
+            }
+        }
+        
+
+        return haveFilterStatus;
+    }
+
     /**
      * @brief send the imu information.
      * 
      */
     void ProviderIMUNode::send_information()
     {
-        sonia_common::ImuInformation msg;
+        sensor_msgs::Imu msg;
         std::string buffer = "";
         std::string parameter = "";
 
         serialConnection.flush();
-        
-        // filter status information
-        serialConnection.transmit("$VNRRG,42*75\n");
-        ros::Duration(0.05).sleep();
-        buffer = serialConnection.receive(1024);
-        bool haveFilterStatus = confirmChecksum(buffer);
-        if(haveFilterStatus)
-        {
-            std::stringstream ss(buffer);
-
-            std::getline(ss, parameter, ',');
-            std::getline(ss, parameter, ',');
-            
-            std::getline(ss, parameter, ',');
-            msg.filterStatus = std::stoul(parameter, 0, 16);
-            
-            std::getline(ss, parameter, ',');
-            msg.yawUncertainty = std::stof(parameter);
-
-            std::getline(ss, parameter, ',');
-            msg.pitchUncertainty = std::stof(parameter);
-
-            std::getline(ss, parameter, ',');
-            msg.rollUncertainty = std::stof(parameter);
-
-            std::getline(ss, parameter, ',');
-            msg.gyroBiasUncertainty = std::stof(parameter);
-
-            std::getline(ss, parameter, ',');
-            msg.magUncertainty = std::stof(parameter);
-
-            std::getline(ss, parameter, '*');
-            msg.accelUncertainty = std::stof(parameter);
-        }
 
         // quaternion, magnetic, acceleration and angular rates information
         serialConnection.transmit("$VNRRG,15*77\n");
         ros::Duration(0.05).sleep();
         buffer = serialConnection.receive(1024);
-        bool haveData = confirmChecksum(buffer);
-        if(haveData)
+        if((!buffer.empty()) && confirmChecksum(buffer))
         {
-             std::stringstream ss(buffer);
+            std::stringstream ss(buffer);
 
             std::getline(ss, parameter, ',');
             std::getline(ss, parameter, ',');
 
             std::getline(ss, parameter, ',');
-            msg.quaternion.x = std::stof(parameter);
+            msg.orientation.x = std::stof(parameter);
 
             std::getline(ss, parameter, ',');
-            msg.quaternion.y = std::stof(parameter);
+            msg.orientation.y = std::stof(parameter);
 
             std::getline(ss, parameter, ',');
-            msg.quaternion.z = std::stof(parameter);
+            msg.orientation.z = std::stof(parameter);
 
             std::getline(ss, parameter, ',');
-            msg.quaternion.w = std::stof(parameter);
+            msg.orientation.w = std::stof(parameter);
 
             std::getline(ss, parameter, ',');
-            msg.magnetometer.x = std::stof(parameter);
+            //msg.magnetometer.x = std::stof(parameter);
 
             std::getline(ss, parameter, ',');
-            msg.magnetometer.y = std::stof(parameter);
+            //msg.magnetometer.y = std::stof(parameter);
 
             std::getline(ss, parameter, ',');
-            msg.magnetometer.z = std::stof(parameter);
+            //msg.magnetometer.z = std::stof(parameter);
 
             std::getline(ss, parameter, ',');
-            msg.acceleration.linear.x = std::stof(parameter);
+            msg.linear_acceleration.x = std::stof(parameter);
 
             std::getline(ss, parameter, ',');
-            msg.acceleration.linear.y = std::stof(parameter);
+            msg.linear_acceleration.y = std::stof(parameter);
 
             std::getline(ss, parameter, ',');
-            msg.acceleration.linear.z = std::stof(parameter);
+            msg.linear_acceleration.z = std::stof(parameter);
 
             std::getline(ss, parameter, ',');
-            msg.acceleration.angular.x = std::stof(parameter);
+            msg.angular_velocity.x = std::stof(parameter);
             
             std::getline(ss, parameter, ',');
-            msg.acceleration.angular.y = std::stof(parameter);
+            msg.angular_velocity.y = std::stof(parameter);
             
             std::getline(ss, parameter, '*');
-            msg.acceleration.angular.z = std::stof(parameter);
-        }
-
-        if(haveData && haveFilterStatus)
-        {
+            msg.angular_velocity.z = std::stof(parameter);
             publisher.publish(msg);
         }
     }
