@@ -33,14 +33,10 @@ namespace provider_IMU
 
 	    Configuration configuration;
 
-        uint8_t calculateCheckSum(std::string data);
-        void appendChecksum(std::string& data);
-        bool confirmChecksum(std::string& data);
-
         std::thread reader_thread;
-        std::thread reg_15_thread;
-        std::thread reg_239_thread;
-        std::thread reg_240_thread;
+        std::thread register_15_thread;
+        std::thread register_239_thread;
+        std::thread register_240_thread;
 
         std::string register_15_str = "";
         std::mutex register_15_mutex;
@@ -59,11 +55,18 @@ namespace provider_IMU
         bool register_15_stop_thread = false;
         bool register_239_stop_thread = false;
         bool register_240_stop_thread = false;
+        bool reader_stop_thread = false;
+
+        uint8_t calculateCheckSum(std::string data);
+        void appendChecksum(std::string& data);
+        bool confirmChecksum(std::string& data);
         
         void send_information();
         bool tare(sonia_common::ImuTare::Request &tareRsq, sonia_common::ImuTare::Response &tareRsp);
         void dvl_velocity(const geometry_msgs::Twist::ConstPtr& msg);
         void send_register_15();
+        void send_register_239();
+        void send_register_240();
         void reader();
 
         ros::NodeHandlePtr nh;

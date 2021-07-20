@@ -15,11 +15,18 @@ namespace provider_IMU
         tare_srv = nh->advertiseService("/provider_imu/tare", &ProviderIMUNode::tare, this);
 
         reader_thread = std::thread(std::bind(&ProviderIMUNode::reader, this));
+        register_15_thread = std::thread(std::bind(&ProviderIMUNode::send_register_15, this));
+        register_239_thread = std::thread(std::bind(&ProviderIMUNode::send_register_239, this));
+        register_240_thread = std::thread(std::bind(&ProviderIMUNode::send_register_240, this));
     }
 
     // node destructor
     ProviderIMUNode::~ProviderIMUNode()
     {
+
+        register_15_stop_thread = true;
+        register_239_stop_thread = true;
+        register_240_stop_thread = true;
 
     }
 
@@ -99,27 +106,42 @@ namespace provider_IMU
     {
         char buffer[1024];
 
-        // find the message beginning
-        while(buffer[0] != '$')
+        while(!reader_stop_thread)
         {
-            serialConnection.readOnce(buffer, 0);
-        }
+            // find the message beginning
+            while(buffer[0] != '$')
+            {
+                serialConnection.readOnce(buffer, 0);
+            }
 
-        for(int i = 1; buffer[i] != '\n'; ++i)
-        {
-            serialConnection.readOnce(buffer, i);
-        }
+            for(int i = 1; buffer[i] != '\n'; ++i)
+            {
+                serialConnection.readOnce(buffer, i);
+            }
 
-        if(!strncmp(&buffer[6], REG_15, 2))
-        {
-            std::unique_lock<std::mutex> mlock(register_15_mutex);
-            register_15_str = std::string(buffer);
-            register_15_cond.notify_one();
-        }
+            if(!strncmp(&buffer[6], REG_15, 3))
+            {
+                std::unique_lock<std::mutex> mlock(register_15_mutex);
+                register_15_str = std::string(buffer);
+                register_15_cond.notify_one();
+            }
+            else if(!strncmp(&buffer[6], REG_239, 4))
+            {
+                std::unique_lock<std::mutex> mlock(register_239_mutex);
+                register_239_str = std::string(buffer);
+                register_239_cond.notify_one();
+            }
+            else if(!strncmp(&buffer[6], REG_240, 4))
+            {
+                std::unique_lock<std::mutex> mlock(register_240_mutex);
+                register_240_str = std::string(buffer);
+                register_240_cond.notify_one();
+            }
+        }        
     }
 
     /**
-     * @brief send the imu information.
+     * @brief thread to send the register 15 values.
      * 
      */
     void ProviderIMUNode::send_register_15()
@@ -132,10 +154,14 @@ namespace provider_IMU
             std::unique_lock<std::mutex> mlock(register_15_mutex);
             register_15_cond.wait(mlock);
 
+            std::string register_15_local = register_15_str;
+
+            mlock.unlock();
+
             // quaternion, magnetic, acceleration and angular rates information
-            if((!register_15_str.empty()) && confirmChecksum(register_15_str))
+            if((!register_15_str.empty()) && confirmChecksum(register_15_local))
             {
-                std::stringstream ss(register_15_str);
+                std::stringstream ss(register_15_local);
 
                 std::getline(ss, parameter, ',');
                 std::getline(ss, parameter, ',');
@@ -160,6 +186,120 @@ namespace provider_IMU
 
                 std::getline(ss, parameter, ',');
                 //msg.magnetometer.z = std::stof(parameter);
+
+                std::getline(ss, parameter, ',');
+                msg.linear_acceleration.x = std::stof(parameter);
+
+                std::getline(ss, parameter, ',');
+                msg.linear_acceleration.y = std::stof(parameter);
+
+                std::getline(ss, parameter, ',');
+                msg.linear_acceleration.z = std::stof(parameter);
+
+                std::getline(ss, parameter, ',');
+                msg.angular_velocity.x = std::stof(parameter);
+                
+                std::getline(ss, parameter, ',');
+                msg.angular_velocity.y = std::stof(parameter);
+                
+                std::getline(ss, parameter, '*');
+                msg.angular_velocity.z = std::stof(parameter);
+                publisher.publish(msg);
+            }
+        }
+    }
+
+    /**
+     * @brief thread to send the register 239 values.
+     * 
+     */
+    void ProviderIMUNode::send_register_239()
+    {
+        while(!register_239_stop_thread)
+        {
+            sensor_msgs::Imu msg;
+            std::string parameter = "";
+
+            std::unique_lock<std::mutex> mlock(register_239_mutex);
+            register_239_cond.wait(mlock);
+
+            std::string register_239_local = register_239_str;
+
+            mlock.unlock();
+
+            // quaternion, magnetic, acceleration and angular rates information
+            if((!register_239_local.empty()) && confirmChecksum(register_239_local))
+            {
+                std::stringstream ss(register_239_local);
+
+                std::getline(ss, parameter, ',');
+                std::getline(ss, parameter, ',');
+
+                std::getline(ss, parameter, ',');
+                msg.orientation.x = std::stof(parameter);
+
+                std::getline(ss, parameter, ',');
+                msg.orientation.y = std::stof(parameter);
+
+                std::getline(ss, parameter, ',');
+                msg.orientation.z = std::stof(parameter);
+
+                std::getline(ss, parameter, ',');
+                msg.linear_acceleration.x = std::stof(parameter);
+
+                std::getline(ss, parameter, ',');
+                msg.linear_acceleration.y = std::stof(parameter);
+
+                std::getline(ss, parameter, ',');
+                msg.linear_acceleration.z = std::stof(parameter);
+
+                std::getline(ss, parameter, ',');
+                msg.angular_velocity.x = std::stof(parameter);
+                
+                std::getline(ss, parameter, ',');
+                msg.angular_velocity.y = std::stof(parameter);
+                
+                std::getline(ss, parameter, '*');
+                msg.angular_velocity.z = std::stof(parameter);
+                publisher.publish(msg);
+            }
+        }
+    }
+
+    /**
+     * @brief thread to send the register 240 values.
+     * 
+     */
+    void ProviderIMUNode::send_register_240()
+    {
+        while(!register_240_stop_thread)
+        {
+            sensor_msgs::Imu msg;
+            std::string parameter = "";
+
+            std::unique_lock<std::mutex> mlock(register_240_mutex);
+            register_240_cond.wait(mlock);
+
+            std::string register_240_local = register_240_str;
+
+            mlock.unlock();
+
+            // quaternion, magnetic, acceleration and angular rates information
+            if((!register_240_local.empty()) && confirmChecksum(register_240_local))
+            {
+                std::stringstream ss(register_240_local);
+
+                std::getline(ss, parameter, ',');
+                std::getline(ss, parameter, ',');
+
+                std::getline(ss, parameter, ',');
+                msg.orientation.x = std::stof(parameter);
+
+                std::getline(ss, parameter, ',');
+                msg.orientation.y = std::stof(parameter);
+
+                std::getline(ss, parameter, ',');
+                msg.orientation.z = std::stof(parameter);
 
                 std::getline(ss, parameter, ',');
                 msg.linear_acceleration.x = std::stof(parameter);
