@@ -65,6 +65,12 @@ std::string Serial::receive(size_t count)
     return std::string(data);
 }
 
+void Serial::readOnce(char* data, int offset)
+{
+    ROS_DEBUG("provider_imu receive Once");
+    read(fd, (data+offset), 1);
+}
+
 void Serial::flush()
 {
     ROS_DEBUG("provider_imu flush data");

@@ -17,6 +17,7 @@ public:
     ~Serial();
 
     std::string receive(size_t count);
+    void readOnce(char* data, int offset);
     void flush();
     ssize_t transmit(const std::string data);
 

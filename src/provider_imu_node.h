@@ -4,11 +4,13 @@
 #include "driver/serial.h"
 
 #include <sensor_msgs/Imu.h>
+#include <geometry_msgs/Twist.h>
 #include <sonia_common/ImuTare.h>
-#include <sonia_common/ImuDisturbance.h>
-#include <sonia_common/ImuResetSettings.h>
-#include <sonia_common/KalmannInfo.h>
 #include <ros/ros.h>
+
+#include <mutex>
+#include <condition_variable>
+#include <thread>
 #include <string>
 #include "Configuration.h"
 
@@ -24,26 +26,38 @@ namespace provider_IMU
         void Spin();
 
     private:
+
+        const char* REG_15 = "15";
+
 	    Configuration configuration;
 
         uint8_t calculateCheckSum(std::string data);
         void appendChecksum(std::string& data);
         bool confirmChecksum(std::string& data);
 
-        bool tare(sonia_common::ImuTare::Request &tareRsq, sonia_common::ImuTare::Response &tareRsp);
-        bool disturbance(sonia_common::ImuDisturbance::Request &disturbanceRsq, sonia_common::ImuDisturbance::Response &disturbanceRsp);
-        bool reset_settings(sonia_common::ImuResetSettings::Request &settingsRsq, sonia_common::ImuResetSettings::Response &settingsRsp);
-        bool kalmann_info(sonia_common::KalmannInfo::Request &kalmannRsq, sonia_common::KalmannInfo::Response &kalmannRsp);
+        std::thread reader_thread;
+        std::thread reg_15_thread;
+
+        std::string register_15_str = "";
+        std::mutex register_15_mutex;
+        std::condition_variable register_15_cond;
+
+        std::mutex writer_mutex;
+
+        bool register_15_stop_thread = false;
+        
         void send_information();
+        void tare(sonia_common::ImuTare::Request &tareRsq, sonia_common::ImuTare::Response &tareRsp);
+        void dvl_velocity(const geometry_msgs::Twist::ConstPtr& msg);
+        void send_register_15();
+        void reader();
 
         ros::NodeHandlePtr nh;
         Serial serialConnection;
 
         ros::ServiceServer tare_srv;
-        ros::ServiceServer disturbance_srv;
-        ros::ServiceServer reset_srv;
-        ros::ServiceServer kalmann_srv;
         ros::Publisher publisher;
+        ros::Subscriber dvl_subscriber;
     };
 }
 
