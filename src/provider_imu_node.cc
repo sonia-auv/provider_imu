@@ -11,7 +11,7 @@ namespace provider_IMU
     : nh(_nh), configuration(_nh), serialConnection(configuration.getTtyPort())
     {
         publisher = nh->advertise<sensor_msgs::Imu>("/provider_imu/imu_info", 100);
-        dvl_subscriber = nh->subscribe<geometry_msgs::Twist>("/proc_nav/dvl_velocity", 100, &ProviderIMUNode::dvl_velocity);
+        dvl_subscriber = nh->subscribe<geometry_msgs::Twist>("/proc_nav/dvl_velocity", 100, &ProviderIMUNode::dvl_velocity, this);
         tare_srv = nh->advertiseService("/provider_imu/tare", &ProviderIMUNode::tare, this);
 
         reader_thread = std::thread(std::bind(&ProviderIMUNode::reader, this));

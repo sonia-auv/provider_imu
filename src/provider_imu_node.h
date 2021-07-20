@@ -27,7 +27,9 @@ namespace provider_IMU
 
     private:
 
-        const char* REG_15 = "15";
+        const char* REG_15 = "15,";
+        const char* REG_239 = "239,";
+        const char* REG_240 = "240,";
 
 	    Configuration configuration;
 
@@ -37,17 +39,29 @@ namespace provider_IMU
 
         std::thread reader_thread;
         std::thread reg_15_thread;
+        std::thread reg_239_thread;
+        std::thread reg_240_thread;
 
         std::string register_15_str = "";
         std::mutex register_15_mutex;
         std::condition_variable register_15_cond;
 
+        std::string register_239_str = "";
+        std::mutex register_239_mutex;
+        std::condition_variable register_239_cond;
+
+        std::string register_240_str = "";
+        std::mutex register_240_mutex;
+        std::condition_variable register_240_cond;
+
         std::mutex writer_mutex;
 
         bool register_15_stop_thread = false;
+        bool register_239_stop_thread = false;
+        bool register_240_stop_thread = false;
         
         void send_information();
-        void tare(sonia_common::ImuTare::Request &tareRsq, sonia_common::ImuTare::Response &tareRsp);
+        bool tare(sonia_common::ImuTare::Request &tareRsq, sonia_common::ImuTare::Response &tareRsp);
         void dvl_velocity(const geometry_msgs::Twist::ConstPtr& msg);
         void send_register_15();
         void reader();
