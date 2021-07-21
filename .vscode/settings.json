@@ -81,5 +81,9 @@
         "shared_mutex": "cpp",
         "cfenv": "cpp",
         "typeindex": "cpp"
-    }
+    },
+    "python.analysis.extraPaths": [
+        "/home/sonia/base_lib_ws/devel/lib/python2.7/dist-packages",
+        "/opt/ros/melodic/lib/python2.7/dist-packages"
+    ]
 }

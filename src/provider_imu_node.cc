@@ -3,6 +3,8 @@
 #include <fstream>
 #include <sstream>
 
+#define BUFFER_SIZE 4096
+
 namespace provider_IMU
 {
 
@@ -27,6 +29,7 @@ namespace provider_IMU
         register_15_stop_thread = true;
         register_239_stop_thread = true;
         register_240_stop_thread = true;
+        reader_stop_thread = true;
 
     }
 
@@ -104,7 +107,7 @@ namespace provider_IMU
      */
     void ProviderIMUNode::reader()
     {
-        char buffer[1024];
+        char buffer[BUFFER_SIZE];
 
         while(!reader_stop_thread)
         {
@@ -114,9 +117,16 @@ namespace provider_IMU
                 serialConnection.readOnce(buffer, 0);
             }
 
-            for(int i = 1; buffer[i] != '\n'; ++i)
+            int i;
+
+            for(i = 1; buffer[i] != '\n' && i < BUFFER_SIZE; ++i)
             {
                 serialConnection.readOnce(buffer, i);
+            }
+
+            if(i == BUFFER_SIZE && buffer[i] != '\n')
+            {
+                continue;
             }
 
             if(!strncmp(&buffer[6], REG_15, 3))
