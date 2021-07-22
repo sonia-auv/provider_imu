@@ -27,9 +27,9 @@ namespace provider_IMU
 
     private:
 
-        const char* REG_15 = "15,";
-        const char* REG_239 = "239,";
-        const char* REG_240 = "240,";
+        const char* REG_15 = "QMR";
+        const char* REG_239 = "YBA";
+        const char* REG_240 = "YIA";
 
 	    Configuration configuration;
 

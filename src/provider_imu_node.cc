@@ -36,7 +36,7 @@ namespace provider_IMU
     // node spin
     void ProviderIMUNode::Spin()
     {
-        ros::Rate r(200);
+        ros::Rate r(20);
         while(ros::ok())
         {
             ros::spinOnce();
@@ -81,10 +81,18 @@ namespace provider_IMU
      */
     bool ProviderIMUNode::confirmChecksum(std::string& data)
     {
-        std::string checksumData = data.substr(0, data.find("*", 0));
-        uint8_t calculatedChecksum = calculateCheckSum(checksumData);
-        uint8_t originalChecksum = std::stoi(data.substr(data.find("*", 0)+1, 2), nullptr, 16);
-        return originalChecksum == calculatedChecksum;
+        try
+        {
+            std::string checksumData = data.substr(0, data.find("*", 0));
+            uint8_t calculatedChecksum = calculateCheckSum(checksumData);
+            uint8_t originalChecksum = std::stoi(data.substr(data.find("*", 0)+1, 2), nullptr, 16);
+            return originalChecksum == calculatedChecksum;
+        }
+        catch(...)
+        {
+            ROS_DEBUG("imu: bad packet");
+            return false;
+        }
     }
 
     /**
@@ -107,41 +115,45 @@ namespace provider_IMU
      */
     void ProviderIMUNode::reader()
     {
+        ROS_INFO("reader thread started");
         char buffer[BUFFER_SIZE];
 
         while(!reader_stop_thread)
         {
             // find the message beginning
-            while(buffer[0] != '$')
+            do
             {
                 serialConnection.readOnce(buffer, 0);
-            }
+            }while(buffer[0] != '$');
 
             int i;
 
-            for(i = 1; buffer[i] != '\n' && i < BUFFER_SIZE; ++i)
+            for(i = 1; buffer[i-1] != '\n' && i < BUFFER_SIZE; i++)
             {
                 serialConnection.readOnce(buffer, i);
             }
 
-            if(i == BUFFER_SIZE && buffer[i] != '\n')
+            if(i == BUFFER_SIZE || buffer[i-1] != '\n' || buffer[i-5] != '*')
             {
+                ROS_DEBUG("imu: bad packet");
                 continue;
             }
 
-            if(!strncmp(&buffer[6], REG_15, 3))
+            buffer[i] = 0;
+
+            if(!strncmp(&buffer[3], REG_15, 3))
             {
                 std::unique_lock<std::mutex> mlock(register_15_mutex);
                 register_15_str = std::string(buffer);
                 register_15_cond.notify_one();
             }
-            else if(!strncmp(&buffer[6], REG_239, 4))
+            else if(!strncmp(&buffer[3], REG_239, 3))
             {
                 std::unique_lock<std::mutex> mlock(register_239_mutex);
                 register_239_str = std::string(buffer);
                 register_239_cond.notify_one();
             }
-            else if(!strncmp(&buffer[6], REG_240, 4))
+            else if(!strncmp(&buffer[3], REG_240, 3))
             {
                 std::unique_lock<std::mutex> mlock(register_240_mutex);
                 register_240_str = std::string(buffer);
@@ -156,6 +168,7 @@ namespace provider_IMU
      */
     void ProviderIMUNode::send_register_15()
     {
+        ROS_INFO("register 15 thread started");
         while(!register_15_stop_thread)
         {
             sensor_msgs::Imu msg;
@@ -164,57 +177,61 @@ namespace provider_IMU
             std::unique_lock<std::mutex> mlock(register_15_mutex);
             register_15_cond.wait(mlock);
 
-            std::string register_15_local = register_15_str;
-
-            mlock.unlock();
-
-            // quaternion, magnetic, acceleration and angular rates information
-            if((!register_15_str.empty()) && confirmChecksum(register_15_local))
+            try
             {
-                std::stringstream ss(register_15_local);
+                // quaternion, magnetic, acceleration and angular rates information
+                if((!register_15_str.empty()) && confirmChecksum(register_15_str))
+                {
+                    std::stringstream ss(register_15_str);
 
-                std::getline(ss, parameter, ',');
-                std::getline(ss, parameter, ',');
+                    std::getline(ss, parameter, ',');
+                    std::getline(ss, parameter, ',');
 
-                std::getline(ss, parameter, ',');
-                msg.orientation.x = std::stof(parameter);
+                    std::getline(ss, parameter, ',');
+                    msg.orientation.x = std::stof(parameter);
 
-                std::getline(ss, parameter, ',');
-                msg.orientation.y = std::stof(parameter);
+                    std::getline(ss, parameter, ',');
+                    msg.orientation.y = std::stof(parameter);
 
-                std::getline(ss, parameter, ',');
-                msg.orientation.z = std::stof(parameter);
+                    std::getline(ss, parameter, ',');
+                    msg.orientation.z = std::stof(parameter);
 
-                std::getline(ss, parameter, ',');
-                msg.orientation.w = std::stof(parameter);
+                    std::getline(ss, parameter, ',');
+                    msg.orientation.w = std::stof(parameter);
 
-                std::getline(ss, parameter, ',');
-                //msg.magnetometer.x = std::stof(parameter);
+                    std::getline(ss, parameter, ',');
+                    //msg.magnetometer.x = std::stof(parameter);
 
-                std::getline(ss, parameter, ',');
-                //msg.magnetometer.y = std::stof(parameter);
+                    std::getline(ss, parameter, ',');
+                    //msg.magnetometer.y = std::stof(parameter);
 
-                std::getline(ss, parameter, ',');
-                //msg.magnetometer.z = std::stof(parameter);
+                    std::getline(ss, parameter, ',');
+                    //msg.magnetometer.z = std::stof(parameter);
 
-                std::getline(ss, parameter, ',');
-                msg.linear_acceleration.x = std::stof(parameter);
+                    std::getline(ss, parameter, ',');
+                    msg.linear_acceleration.x = std::stof(parameter);
 
-                std::getline(ss, parameter, ',');
-                msg.linear_acceleration.y = std::stof(parameter);
+                    std::getline(ss, parameter, ',');
+                    msg.linear_acceleration.y = std::stof(parameter);
 
-                std::getline(ss, parameter, ',');
-                msg.linear_acceleration.z = std::stof(parameter);
+                    std::getline(ss, parameter, ',');
+                    msg.linear_acceleration.z = std::stof(parameter);
 
-                std::getline(ss, parameter, ',');
-                msg.angular_velocity.x = std::stof(parameter);
-                
-                std::getline(ss, parameter, ',');
-                msg.angular_velocity.y = std::stof(parameter);
-                
-                std::getline(ss, parameter, '*');
-                msg.angular_velocity.z = std::stof(parameter);
-                publisher.publish(msg);
+                    std::getline(ss, parameter, ',');
+                    msg.angular_velocity.x = std::stof(parameter);
+                    
+                    std::getline(ss, parameter, ',');
+                    msg.angular_velocity.y = std::stof(parameter);
+                    
+                    std::getline(ss, parameter, '*');
+                    msg.angular_velocity.z = std::stof(parameter);
+
+                    publisher.publish(msg);
+                }   
+            }
+            catch(...)
+            {
+                ROS_DEBUG("imu: bad packet");
             }
         }
     }
@@ -225,6 +242,7 @@ namespace provider_IMU
      */
     void ProviderIMUNode::send_register_239()
     {
+        ROS_INFO("register 239 thread started");
         while(!register_239_stop_thread)
         {
             sensor_msgs::Imu msg;
@@ -233,45 +251,48 @@ namespace provider_IMU
             std::unique_lock<std::mutex> mlock(register_239_mutex);
             register_239_cond.wait(mlock);
 
-            std::string register_239_local = register_239_str;
-
-            mlock.unlock();
-
-            // quaternion, magnetic, acceleration and angular rates information
-            if((!register_239_local.empty()) && confirmChecksum(register_239_local))
+            try
             {
-                std::stringstream ss(register_239_local);
+                // quaternion, magnetic, acceleration and angular rates information
+                if((!register_239_str.empty()) && confirmChecksum(register_239_str))
+                {
+                    std::stringstream ss(register_239_str);
 
-                std::getline(ss, parameter, ',');
-                std::getline(ss, parameter, ',');
+                    std::getline(ss, parameter, ',');
+                    std::getline(ss, parameter, ',');
 
-                std::getline(ss, parameter, ',');
-                msg.orientation.x = std::stof(parameter);
+                    std::getline(ss, parameter, ',');
+                    msg.orientation.x = std::stof(parameter);
 
-                std::getline(ss, parameter, ',');
-                msg.orientation.y = std::stof(parameter);
+                    std::getline(ss, parameter, ',');
+                    msg.orientation.y = std::stof(parameter);
 
-                std::getline(ss, parameter, ',');
-                msg.orientation.z = std::stof(parameter);
+                    std::getline(ss, parameter, ',');
+                    msg.orientation.z = std::stof(parameter);
 
-                std::getline(ss, parameter, ',');
-                msg.linear_acceleration.x = std::stof(parameter);
+                    std::getline(ss, parameter, ',');
+                    msg.linear_acceleration.x = std::stof(parameter);
 
-                std::getline(ss, parameter, ',');
-                msg.linear_acceleration.y = std::stof(parameter);
+                    std::getline(ss, parameter, ',');
+                    msg.linear_acceleration.y = std::stof(parameter);
 
-                std::getline(ss, parameter, ',');
-                msg.linear_acceleration.z = std::stof(parameter);
+                    std::getline(ss, parameter, ',');
+                    msg.linear_acceleration.z = std::stof(parameter);
 
-                std::getline(ss, parameter, ',');
-                msg.angular_velocity.x = std::stof(parameter);
-                
-                std::getline(ss, parameter, ',');
-                msg.angular_velocity.y = std::stof(parameter);
-                
-                std::getline(ss, parameter, '*');
-                msg.angular_velocity.z = std::stof(parameter);
-                publisher.publish(msg);
+                    std::getline(ss, parameter, ',');
+                    msg.angular_velocity.x = std::stof(parameter);
+                    
+                    std::getline(ss, parameter, ',');
+                    msg.angular_velocity.y = std::stof(parameter);
+                    
+                    std::getline(ss, parameter, '*');
+                    msg.angular_velocity.z = std::stof(parameter);
+                    publisher.publish(msg);
+                }
+            }
+            catch(...)
+            {
+                ROS_DEBUG("imu: bad packet");
             }
         }
     }
@@ -282,6 +303,7 @@ namespace provider_IMU
      */
     void ProviderIMUNode::send_register_240()
     {
+        ROS_INFO("register 240 thread started");
         while(!register_240_stop_thread)
         {
             sensor_msgs::Imu msg;
@@ -290,45 +312,48 @@ namespace provider_IMU
             std::unique_lock<std::mutex> mlock(register_240_mutex);
             register_240_cond.wait(mlock);
 
-            std::string register_240_local = register_240_str;
-
-            mlock.unlock();
-
-            // quaternion, magnetic, acceleration and angular rates information
-            if((!register_240_local.empty()) && confirmChecksum(register_240_local))
+            try
             {
-                std::stringstream ss(register_240_local);
+                // quaternion, magnetic, acceleration and angular rates information
+                if((!register_240_str.empty()) && confirmChecksum(register_240_str))
+                {
+                    std::stringstream ss(register_240_str);
 
-                std::getline(ss, parameter, ',');
-                std::getline(ss, parameter, ',');
+                    std::getline(ss, parameter, ',');
+                    std::getline(ss, parameter, ',');
 
-                std::getline(ss, parameter, ',');
-                msg.orientation.x = std::stof(parameter);
+                    std::getline(ss, parameter, ',');
+                    msg.orientation.x = std::stof(parameter);
 
-                std::getline(ss, parameter, ',');
-                msg.orientation.y = std::stof(parameter);
+                    std::getline(ss, parameter, ',');
+                    msg.orientation.y = std::stof(parameter);
 
-                std::getline(ss, parameter, ',');
-                msg.orientation.z = std::stof(parameter);
+                    std::getline(ss, parameter, ',');
+                    msg.orientation.z = std::stof(parameter);
 
-                std::getline(ss, parameter, ',');
-                msg.linear_acceleration.x = std::stof(parameter);
+                    std::getline(ss, parameter, ',');
+                    msg.linear_acceleration.x = std::stof(parameter);
 
-                std::getline(ss, parameter, ',');
-                msg.linear_acceleration.y = std::stof(parameter);
+                    std::getline(ss, parameter, ',');
+                    msg.linear_acceleration.y = std::stof(parameter);
 
-                std::getline(ss, parameter, ',');
-                msg.linear_acceleration.z = std::stof(parameter);
+                    std::getline(ss, parameter, ',');
+                    msg.linear_acceleration.z = std::stof(parameter);
 
-                std::getline(ss, parameter, ',');
-                msg.angular_velocity.x = std::stof(parameter);
-                
-                std::getline(ss, parameter, ',');
-                msg.angular_velocity.y = std::stof(parameter);
-                
-                std::getline(ss, parameter, '*');
-                msg.angular_velocity.z = std::stof(parameter);
-                publisher.publish(msg);
+                    std::getline(ss, parameter, ',');
+                    msg.angular_velocity.x = std::stof(parameter);
+                    
+                    std::getline(ss, parameter, ',');
+                    msg.angular_velocity.y = std::stof(parameter);
+                    
+                    std::getline(ss, parameter, '*');
+                    msg.angular_velocity.z = std::stof(parameter);
+                    publisher.publish(msg);
+                }
+            }
+            catch(...)
+            {
+                ROS_DEBUG("imu: bad packet");
             }
         }
     }
