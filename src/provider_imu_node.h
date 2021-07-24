@@ -31,12 +31,15 @@ namespace provider_IMU
         const char* REG_239 = "YBA";
         const char* REG_240 = "YIA";
 
+        const char* ERR_STR = "ERR";
+
 	    Configuration configuration;
 
         std::thread reader_thread;
         std::thread register_15_thread;
         std::thread register_239_thread;
         std::thread register_240_thread;
+        std::thread error_thread;
 
         std::string register_15_str = "";
         std::mutex register_15_mutex;
@@ -50,11 +53,16 @@ namespace provider_IMU
         std::mutex register_240_mutex;
         std::condition_variable register_240_cond;
 
+        std::string error_str = "";
+        std::mutex error_mutex;
+        std::condition_variable error_cond;
+
         std::mutex writer_mutex;
 
         bool register_15_stop_thread = false;
         bool register_239_stop_thread = false;
         bool register_240_stop_thread = false;
+        bool error_stop_thread = false;
         bool reader_stop_thread = false;
 
         uint8_t calculateCheckSum(std::string data);
@@ -67,6 +75,7 @@ namespace provider_IMU
         void send_register_15();
         void send_register_239();
         void send_register_240();
+        void send_error();
         void reader();
 
         ros::NodeHandlePtr nh;

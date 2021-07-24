@@ -17,6 +17,7 @@ namespace provider_IMU
         tare_srv = nh->advertiseService("/provider_imu/tare", &ProviderIMUNode::tare, this);
 
         reader_thread = std::thread(std::bind(&ProviderIMUNode::reader, this));
+        error_thread = std::thread(std::bind(&ProviderIMUNode::send_error, this));
         register_15_thread = std::thread(std::bind(&ProviderIMUNode::send_register_15, this));
         register_239_thread = std::thread(std::bind(&ProviderIMUNode::send_register_239, this));
         register_240_thread = std::thread(std::bind(&ProviderIMUNode::send_register_240, this));
@@ -25,12 +26,11 @@ namespace provider_IMU
     // node destructor
     ProviderIMUNode::~ProviderIMUNode()
     {
-
         register_15_stop_thread = true;
         register_239_stop_thread = true;
         register_240_stop_thread = true;
+        error_stop_thread = true;
         reader_stop_thread = true;
-
     }
 
     // node spin
@@ -133,11 +133,11 @@ namespace provider_IMU
                 serialConnection.readOnce(buffer, i);
             }
 
-            if(i == BUFFER_SIZE && buffer[i-1] != '\n' && buffer[i-5] != '*')
+            if(i >= BUFFER_SIZE)
             {
-                ROS_INFO("imu: bad packet thrash");
                 continue;
             }
+
 
             buffer[i] = 0;
 
@@ -159,7 +159,49 @@ namespace provider_IMU
                 register_240_str = std::string(buffer);
                 register_240_cond.notify_one();
             }
+            else if(!strncmp(&buffer[3], ERR_STR, 3))
+            {
+                std::unique_lock<std::mutex> mlock(error_mutex);
+                error_str = std::string(buffer);
+                error_cond.notify_one();
+            }
         }        
+    }
+
+    /**
+     * @brief thread to send the error values.
+     * 
+     */
+    void ProviderIMUNode::send_error()
+    {
+        ROS_INFO("error thread started");
+        while(!error_stop_thread)
+        {
+            sensor_msgs::Imu msg;
+            std::string parameter = "";
+
+            std::unique_lock<std::mutex> mlock(error_mutex);
+            error_cond.wait(mlock);
+
+            try
+            {
+                // quaternion, magnetic, acceleration and angular rates information
+                if((!error_str.empty()) && confirmChecksum(error_str))
+                {
+                    std::stringstream ss(error_str);
+
+                    std::getline(ss, parameter, ',');
+
+                    std::getline(ss, parameter, '*');
+                    
+                    ROS_INFO("error: %s", parameter.c_str());
+                }   
+            }
+            catch(...)
+            {
+                ROS_INFO("imu: bad packet error");
+            }
+        }
     }
 
     /**
@@ -234,6 +276,8 @@ namespace provider_IMU
             }
         }
     }
+
+    
 
     /**
      * @brief thread to send the register 239 values.
