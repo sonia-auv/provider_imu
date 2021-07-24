@@ -133,7 +133,7 @@ namespace provider_IMU
                 serialConnection.readOnce(buffer, i);
             }
 
-            if(i == BUFFER_SIZE || buffer[i-1] != '\n' || buffer[i-5] != '*')
+            if(i == BUFFER_SIZE && buffer[i-1] != '\n' && buffer[i-5] != '*')
             {
                 ROS_INFO("imu: bad packet thrash");
                 continue;
