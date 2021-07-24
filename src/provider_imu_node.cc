@@ -185,7 +185,6 @@ namespace provider_IMU
                     std::stringstream ss(register_15_str);
 
                     std::getline(ss, parameter, ',');
-                    std::getline(ss, parameter, ',');
 
                     std::getline(ss, parameter, ',');
                     msg.orientation.x = std::stof(parameter);
@@ -259,7 +258,6 @@ namespace provider_IMU
                     std::stringstream ss(register_239_str);
 
                     std::getline(ss, parameter, ',');
-                    std::getline(ss, parameter, ',');
 
                     std::getline(ss, parameter, ',');
                     msg.orientation.x = std::stof(parameter);
@@ -319,7 +317,6 @@ namespace provider_IMU
                 {
                     std::stringstream ss(register_240_str);
 
-                    std::getline(ss, parameter, ',');
                     std::getline(ss, parameter, ',');
 
                     std::getline(ss, parameter, ',');
