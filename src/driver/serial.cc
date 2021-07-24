@@ -9,7 +9,7 @@
 
 Serial::Serial(std::string port)
 {
-    fd = open(port.c_str(), O_RDWR | O_NOCTTY | O_NDELAY);
+    fd = open(port.c_str(), O_RDWR | O_NOCTTY);
     if(fd == -1)
     {
         ROS_ERROR("unable to connect to %s", port.c_str());
@@ -19,8 +19,6 @@ Serial::Serial(std::string port)
     {
         ROS_INFO("connection to %s succeed", port.c_str());
     }
-
-    fcntl(fd, F_SETFL, O_NDELAY);
 
     tcgetattr(fd, &options);
 
