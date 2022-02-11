@@ -2,7 +2,7 @@
 <package>
   <name>provider_imu</name>
   <version>1.2.0</version>
-  <description>The provider_imu package provide the raw data from the GX3 Imu</description>
+  <description>The provider_imu package </description>
 
   <author>Thibaut Mattio</author>
 
