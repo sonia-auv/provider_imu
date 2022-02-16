@@ -4,8 +4,8 @@
 #include "driver/serial.h"
 
 #include <sensor_msgs/Imu.h>
+#include <std_srvs/Empty.h>
 #include <geometry_msgs/Twist.h>
-#include <sonia_common/ImuTare.h>
 #include <ros/ros.h>
 
 #include <mutex>
@@ -70,7 +70,7 @@ namespace provider_IMU
         bool confirmChecksum(std::string& data);
         
         void send_information();
-        bool tare(sonia_common::ImuTare::Request &tareRsq, sonia_common::ImuTare::Response &tareRsp);
+        bool tare(std_srvs::Empty::Request &tareRsq, std_srvs::Empty::Response &tareRsp);
         void dvl_velocity(const geometry_msgs::Twist::ConstPtr& msg);
         void send_register_15();
         void send_register_239();

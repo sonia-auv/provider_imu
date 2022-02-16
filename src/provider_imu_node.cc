@@ -100,7 +100,7 @@ namespace provider_IMU
      * 
      * @param tare contains the tare service
      */
-    bool ProviderIMUNode::tare(sonia_common::ImuTare::Request &tareRsq, sonia_common::ImuTare::Response &tareRsp)
+    bool ProviderIMUNode::tare(std_srvs::Empty::Request &tareRsq, std_srvs::Empty::Response &tareRsp)
     {
         serialConnection.transmit("$VNTAR*5F\n");
         ros::Duration(0.1).sleep();
