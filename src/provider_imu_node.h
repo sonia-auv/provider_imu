@@ -6,6 +6,8 @@
 #include <sensor_msgs/Imu.h>
 #include <geometry_msgs/Twist.h>
 #include <sonia_common/ImuTare.h>
+#include <std_srvs/SetBool.h>
+
 #include <ros/ros.h>
 
 #include <mutex>
@@ -59,6 +61,7 @@ namespace provider_IMU
 
         std::mutex writer_mutex;
 
+
         bool register_15_stop_thread = false;
         bool register_239_stop_thread = false;
         bool register_240_stop_thread = false;
@@ -71,6 +74,7 @@ namespace provider_IMU
         
         void send_information();
         bool tare(sonia_common::ImuTare::Request &tareRsq, sonia_common::ImuTare::Response &tareRsp);
+        bool indoormode(std_srvs::SetBool::Request &indoormodeRsq, std_srvs::SetBool::Response &indoormodeRsp);
         void dvl_velocity(const geometry_msgs::Twist::ConstPtr& msg);
         void send_register_15();
         void send_register_239();
@@ -82,6 +86,7 @@ namespace provider_IMU
         Serial serialConnection;
 
         ros::ServiceServer tare_srv;
+        ros::ServiceServer indoor_srv;
         ros::Publisher publisher;
         ros::Subscriber dvl_subscriber;
     };
