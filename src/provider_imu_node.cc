@@ -91,6 +91,7 @@ namespace provider_IMU
         catch(...)
         {
             ROS_INFO("imu: bad packet checksum");
+            ROS_INFO("packet: %s", data.c_str());
             return false;
         }
     }
@@ -200,6 +201,7 @@ namespace provider_IMU
             catch(...)
             {
                 ROS_INFO("imu: bad packet error");
+                ROS_INFO("bad packet: %s", error_str.c_str());
             }
         }
     }
@@ -273,6 +275,7 @@ namespace provider_IMU
             catch(...)
             {
                 ROS_INFO("imu: bad packet register 15");
+                ROS_INFO("packet: %s", register_15_str.c_str());
             }
         }
     }
@@ -335,6 +338,7 @@ namespace provider_IMU
             catch(...)
             {
                 ROS_DEBUG("imu: bad packet");
+                ROS_INFO("packet: %s", register_239_str.c_str());
             }
         }
     }
@@ -395,6 +399,7 @@ namespace provider_IMU
             catch(...)
             {
                 ROS_DEBUG("imu: bad packet");
+                ROS_INFO("packet: %s", register_240_str.c_str());
             }
         }
     }
