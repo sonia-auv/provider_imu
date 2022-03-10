@@ -120,9 +120,7 @@ namespace provider_IMU
             
         if (indoormodeRsq.data) {
             
-            std::string command = "$VNWRG,35,1,2,1,1";
-            appendChecksum(command);
-            serialConnection.transmit(command + std::string("/n"));
+            serialConnection.transmit("$VNWRG,35,1,2,1,1*73/n");
             ros::Duration(0.1).sleep();
 
             indoormodeRsp.message = "IMU in indoor mode";
@@ -130,15 +128,14 @@ namespace provider_IMU
 
         } else {
 
-            std::string command = "$VNWRG,35,1,0,1,1";
-            appendChecksum(command);
-            serialConnection.transmit(command + std::string("/n"));
+            serialConnection.transmit("$VNWRG,35,1,0,1,1*71/n");
             ros::Duration(0.1).sleep();
 
             indoormodeRsp.message = "IMU in absolute mode";
             ROS_INFO_STREAM("IMU in absolute mode");
             
         }
+        indoormodeRsp.success = true;
         return true;
     }
 
