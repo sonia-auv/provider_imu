@@ -119,8 +119,10 @@ namespace provider_IMU
     {
             
         if (indoormodeRsq.data) {
-
-            serialConnection.transmit("$VNTAR*5F\n"); //Modifier le string
+            
+            std::string command = "$VNWRG,35,1,2,1,1";
+            appendChecksum(command);
+            serialConnection.transmit(command + std::string("/n"));
             ros::Duration(0.1).sleep();
 
             indoormodeRsp.message = "IMU in indoor mode";
@@ -128,11 +130,13 @@ namespace provider_IMU
 
         } else {
 
-            serialConnection.transmit("$VNTAR*5F\n"); //Modifier le string
+            std::string command = "$VNWRG,35,1,0,1,1";
+            appendChecksum(command);
+            serialConnection.transmit(command + std::string("/n"));
             ros::Duration(0.1).sleep();
 
-            indoormodeRsp.message = "IMU in outdoor mode";
-            ROS_INFO_STREAM("IMU in outdoor mode");
+            indoormodeRsp.message = "IMU in absolute mode";
+            ROS_INFO_STREAM("IMU in absolute mode");
             
         }
         return true;
