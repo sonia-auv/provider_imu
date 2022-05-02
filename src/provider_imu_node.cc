@@ -15,6 +15,7 @@ namespace provider_IMU
         publisher = nh->advertise<sensor_msgs::Imu>("/provider_imu/imu_info", 100);
         dvl_subscriber = nh->subscribe<geometry_msgs::Twist>("/proc_nav/dvl_velocity", 100, &ProviderIMUNode::dvl_velocity, this);
         tare_srv = nh->advertiseService("/provider_imu/tare", &ProviderIMUNode::tare, this);
+        indoor_srv = nh->advertiseService("/provider_imu/indoor", &ProviderIMUNode::indoormode, this);
 
         reader_thread = std::thread(std::bind(&ProviderIMUNode::reader, this));
         error_thread = std::thread(std::bind(&ProviderIMUNode::send_error, this));
@@ -106,6 +107,35 @@ namespace provider_IMU
         ros::Duration(0.1).sleep();
 
         ROS_INFO("IMU tare finished");
+        return true;
+    }
+
+    /**
+     * @brief Switch the transmission mode to indoor or outdoor
+     * 
+     * @param std_srvs contains the std_srvs SetBool service
+     */
+    bool ProviderIMUNode::indoormode(std_srvs::SetBool::Request &indoormodeRsq, std_srvs::SetBool::Response &indoormodeRsp)
+    {
+            
+        if (indoormodeRsq.data) {
+            
+            serialConnection.transmit("$VNWRG,35,1,2,1,1*73/n");
+            ros::Duration(0.1).sleep();
+
+            indoormodeRsp.message = "IMU in indoor mode";
+            ROS_INFO_STREAM("IMU in indoor mode");
+
+        } else {
+
+            serialConnection.transmit("$VNWRG,35,1,0,1,1*71/n");
+            ros::Duration(0.1).sleep();
+
+            indoormodeRsp.message = "IMU in absolute mode";
+            ROS_INFO_STREAM("IMU in absolute mode");
+            
+        }
+        indoormodeRsp.success = true;
         return true;
     }
 

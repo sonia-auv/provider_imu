@@ -43,12 +43,8 @@ set(provider_imu_SRC_DIR "src")
 
 find_package(catkin REQUIRED COMPONENTS
     roscpp
-    self_test
-    diagnostic_updater
-    tf
     std_msgs
     sensor_msgs
-    message_generation
     sonia_common
     )
 
@@ -62,12 +58,8 @@ catkin_package(
     LIBRARIES
     CATKIN_DEPENDS
     roscpp
-    self_test
-    diagnostic_updater
-    tf
     std_msgs
     sensor_msgs
-    message_runtime
     sonia_common
 )
 

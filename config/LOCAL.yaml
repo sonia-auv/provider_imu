@@ -1,0 +1,2 @@
+#Constants informations
+/provider_imu/connection/tty_port: "/dev/ttyUSB0"
