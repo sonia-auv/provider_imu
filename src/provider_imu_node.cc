@@ -16,11 +16,16 @@ namespace provider_IMU
         publisher = nh->advertise<sensor_msgs::Imu>("/provider_imu/imu_info", 100);
 
         // Subscribers
-        dvl_subscriber = nh->subscribe<geometry_msgs::Twist>("/proc_nav/dvl_velocity", 100, &ProviderIMUNode::dvl_velocity, this);
+        dvl_subscriber = nh->subscribe<geometry_msgs::Twist>("/proc_nav/dvl_velocity", 100, 
+            &ProviderIMUNode::dvl_velocity, this);
         vpe_basic_control = nh->subscribe<std_msgs::UInt8MultiArray>("/provider_imu/vpe_basic_control", 10, 
             &ProviderIMUNode::vpe_basic_control_callback, this);
         magnetometer_calibration_control = nh->subscribe<std_msgs::UInt8MultiArray>("/provider_imu/magnetometer_calibration_control", 10, 
             &ProviderIMUNode::magnetometer_calibration_control_callback, this);
+        delta_theta_delta_velocity = nh->subscribe<std_msgs::UInt8MultiArray>("/provider_imu/delta_theta_delta_velocity", 10,
+            &ProviderIMUNode::delta_theta_delta_velocity_callback, this);
+        imu_filtering_configuration = nh->subscribe<std_msgs::UInt8MultiArray>("/provider_imu/imu_filtering_configuration", 10,
+            &ProviderIMUNode::imu_filtering_configuration_callback, this);
 
         // Service
         tare_srv = nh->advertiseService("/provider_imu/tare", &ProviderIMUNode::tare, this);
@@ -266,6 +271,41 @@ namespace provider_IMU
         ros::Duration(0.5).sleep();
 
         writer_mutex.unlock();
+    }
+
+    void ProviderIMUNode::delta_theta_delta_velocity_callback(const std_msgs::UInt8MultiArray::ConstPtr& msg)
+    {
+        std::stringstream ss;
+
+        writer_mutex.lock();
+
+        ss << "$VNWNV,82," << std::to_string(msg->data.at(0)) << "," << std::to_string(msg->data.at(1)) << "," << std::to_string(msg->data.at(2)) 
+            << "," << std::to_string(msg->data.at(3));
+        std::string send_data = ss.str();
+        appendChecksum(send_data);
+
+        serialConnection.transmit(send_data);
+        ros::Duration(0.5).sleep();
+
+        writer_mutex.unlock();        
+    }
+
+    void ProviderIMUNode::imu_filtering_configuration_callback(const std_msgs::UInt8MultiArray::ConstPtr& msg)
+    {
+        std::stringstream ss;
+
+        writer_mutex.lock();
+
+        ss << "$VNWNV,85," << std::to_string(msg->data.at(0)) << "," << std::to_string(msg->data.at(1)) << "," << std::to_string(msg->data.at(2)) 
+            << "," << std::to_string(msg->data.at(4)) << "," << std::to_string(msg->data.at(5)) << "," << std::to_string(msg->data.at(6))
+            << "," << std::to_string(msg->data.at(7)) << "," << std::to_string(msg->data.at(8)) << "," << std::to_string(msg->data.at(9));
+        std::string send_data = ss.str();
+        appendChecksum(send_data);
+
+        serialConnection.transmit(send_data);
+        ros::Duration(0.5).sleep();
+
+        writer_mutex.unlock();        
     }
 
     /**

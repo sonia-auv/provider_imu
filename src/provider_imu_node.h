@@ -86,6 +86,8 @@ namespace provider_IMU
         void asyn_data_frequency_callback(const std_msgs::UInt8::ConstPtr& msg);
         void vpe_basic_control_callback(const std_msgs::UInt8MultiArray::ConstPtr& msg);
         void magnetometer_calibration_control_callback(const std_msgs::UInt8MultiArray::ConstPtr& msg);
+        void delta_theta_delta_velocity_callback(const std_msgs::UInt8MultiArray::ConstPtr& msg);
+        void imu_filtering_configuration_callback(const std_msgs::UInt8MultiArray::ConstPtr& msg);
 
         void send_register_15();
         void send_register_239();
@@ -107,6 +109,8 @@ namespace provider_IMU
         ros::Subscriber asyn_data_frequency;
         ros::Subscriber vpe_basic_control;
         ros::Subscriber magnetometer_calibration_control;
+        ros::Subscriber delta_theta_delta_velocity;
+        ros::Subscriber imu_filtering_configuration;
     };
 }
 
