@@ -2,11 +2,12 @@
 #define INTERFACE_RS485_NODE_H
 
 #include "driver/serial.h"
-
 #include <sensor_msgs/Imu.h>
-#include <std_srvs/Empty.h>
 #include <geometry_msgs/Twist.h>
+#include <std_msgs/UInt8.h>
+#include <std_msgs/UInt8MultiArray.h>
 #include <std_srvs/SetBool.h>
+#include <std_srvs/Empty.h>
 #include <ros/ros.h>
 
 #include <mutex>
@@ -60,7 +61,6 @@ namespace provider_IMU
 
         std::mutex writer_mutex;
 
-
         bool register_15_stop_thread = false;
         bool register_239_stop_thread = false;
         bool register_240_stop_thread = false;
@@ -72,10 +72,18 @@ namespace provider_IMU
         bool confirmChecksum(std::string& data);
         
         void send_information();
-        bool indoormode(std_srvs::SetBool::Request &indoormodeRsq, std_srvs::SetBool::Response &indoormodeRsp);
+        // bool indoormode(std_srvs::SetBool::Request &indoormodeRsq, std_srvs::SetBool::Response &indoormodeRsp);
         bool tare(std_srvs::Empty::Request &tareRsq, std_srvs::Empty::Response &tareRsp);
-      
+        bool reset(std_srvs::Empty::Request &tareRsq, std_srvs::Empty::Response &tareRsp);
+        bool magnetic_disturbance(std_srvs::SetBool::Request &rsq, std_srvs::SetBool::Response &rsp);
+        bool acceleration_disturbance(std_srvs::SetBool::Request &rsq, std_srvs::SetBool::Response &rsp);
+        bool velocity_compensation(std_srvs::SetBool::Request &rsq, std_srvs::SetBool::Response &rsp);
+
         void dvl_velocity(const geometry_msgs::Twist::ConstPtr& msg);
+        void asyn_data_frequency_callback(const std_msgs::UInt8::ConstPtr& msg);
+        void vpe_basic_control_callback(const std_msgs::UInt8MultiArray::ConstPtr& msg);
+        void magnetometer_calibration_control_callback(const std_msgs::UInt8MultiArray::ConstPtr& msg);
+
         void send_register_15();
         void send_register_239();
         void send_register_240();
@@ -86,9 +94,18 @@ namespace provider_IMU
         Serial serialConnection;
 
         ros::ServiceServer tare_srv;
-        ros::ServiceServer indoor_srv;
+        ros::ServiceServer reset_srv;
+        ros::ServiceServer magnetic_disturbance_srv;
+        ros::ServiceServer acceleration_disturbance_srv;
+        ros::ServiceServer velocity_compensation_srv;
+        // ros::ServiceServer indoor_srv;
+
         ros::Publisher publisher;
+
         ros::Subscriber dvl_subscriber;
+        ros::Subscriber asyn_data_frequency;
+        ros::Subscriber vpe_basic_control;
+        ros::Subscriber magnetometer_calibration_control;
     };
 }
 
