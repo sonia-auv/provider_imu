@@ -25,6 +25,7 @@ namespace provider_IMU
         // Service
         tare_srv = nh->advertiseService("/provider_imu/tare", &ProviderIMUNode::tare, this);
         reset_srv = nh->advertiseService("/provider_imu/reset", &ProviderIMUNode::reset, this);
+        factory_reset_srv = nh->advertiseService("/provider_imu/factory_reset", &ProviderIMUNode::factory_reset, this);
         magnetic_disturbance_srv = nh->advertiseService("/provider_imu/magnetic_disturbance", &ProviderIMUNode::magnetic_disturbance, this);
         acceleration_disturbance_srv = nh->advertiseService("/provider_imu/acceleration_disturbance", &ProviderIMUNode::acceleration_disturbance, this);
         velocity_compensation_srv = nh->advertiseService("/provider_imu/velocity_compensation", &ProviderIMUNode::velocity_compensation, this);
@@ -126,10 +127,19 @@ namespace provider_IMU
 
     bool ProviderIMUNode::reset(std_srvs::Empty::Request &tareRsq, std_srvs::Empty::Response &tareRsp)
     {
-        serialConnection.transmit("$VNRFS*5F\n");
+        serialConnection.transmit("$VNRST*4D\n");
         ros::Duration(0.1).sleep();
 
         ROS_INFO("IMU reset finished");
+        return true;
+    }
+
+    bool ProviderIMUNode::factory_reset(std_srvs::Empty::Request &tareRsq, std_srvs::Empty::Response &tareRsp)
+    {
+        serialConnection.transmit("$VNRFS*5F\n");
+        ros::Duration(0.1).sleep();
+
+        ROS_INFO("IMU factory reset finished");
         return true;
     }
 

@@ -76,6 +76,7 @@ namespace provider_IMU
         // bool indoormode(std_srvs::SetBool::Request &indoormodeRsq, std_srvs::SetBool::Response &indoormodeRsp);
         bool tare(std_srvs::Empty::Request &tareRsq, std_srvs::Empty::Response &tareRsp);
         bool reset(std_srvs::Empty::Request &tareRsq, std_srvs::Empty::Response &tareRsp);
+        bool factory_reset(std_srvs::Empty::Request &tareRsq, std_srvs::Empty::Response &tareRsp);
         bool magnetic_disturbance(std_srvs::SetBool::Request &rsq, std_srvs::SetBool::Response &rsp);
         bool acceleration_disturbance(std_srvs::SetBool::Request &rsq, std_srvs::SetBool::Response &rsp);
         bool velocity_compensation(std_srvs::SetBool::Request &rsq, std_srvs::SetBool::Response &rsp);
@@ -94,6 +95,7 @@ namespace provider_IMU
 
         ros::ServiceServer tare_srv;
         ros::ServiceServer reset_srv;
+        ros::ServiceServer factory_reset_srv;
         ros::ServiceServer magnetic_disturbance_srv;
         ros::ServiceServer acceleration_disturbance_srv;
         ros::ServiceServer velocity_compensation_srv;
