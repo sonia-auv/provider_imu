@@ -32,7 +32,6 @@ namespace provider_IMU
         const char* REG_15 = "QMR";
         const char* REG_239 = "YBA";
         const char* REG_240 = "YIA";
-
         const char* ERR_STR = "ERR";
 
         ros::NodeHandlePtr nh;
@@ -80,6 +79,7 @@ namespace provider_IMU
         bool magnetic_disturbance(std_srvs::SetBool::Request &rsq, std_srvs::SetBool::Response &rsp);
         bool acceleration_disturbance(std_srvs::SetBool::Request &rsq, std_srvs::SetBool::Response &rsp);
         bool velocity_compensation(std_srvs::SetBool::Request &rsq, std_srvs::SetBool::Response &rsp);
+        bool asyn_output_pause(std_srvs::SetBool::Request &rsq, std_srvs::SetBool::Response &rsp);
 
         void dvl_velocity(const geometry_msgs::Twist::ConstPtr& msg);
         void asyn_data_frequency_callback(const std_msgs::UInt8::ConstPtr& msg);
@@ -97,7 +97,7 @@ namespace provider_IMU
         ros::ServiceServer magnetic_disturbance_srv;
         ros::ServiceServer acceleration_disturbance_srv;
         ros::ServiceServer velocity_compensation_srv;
-        // ros::ServiceServer indoor_srv;
+        ros::ServiceServer asyn_output_pause_srv;
 
         ros::Publisher publisher;
 

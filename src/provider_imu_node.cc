@@ -28,7 +28,7 @@ namespace provider_IMU
         magnetic_disturbance_srv = nh->advertiseService("/provider_imu/magnetic_disturbance", &ProviderIMUNode::magnetic_disturbance, this);
         acceleration_disturbance_srv = nh->advertiseService("/provider_imu/acceleration_disturbance", &ProviderIMUNode::acceleration_disturbance, this);
         velocity_compensation_srv = nh->advertiseService("/provider_imu/velocity_compensation", &ProviderIMUNode::velocity_compensation, this);
-        // indoor_srv = nh->advertiseService("/provider_imu/indoor", &ProviderIMUNode::indoormode, this);
+        asyn_output_pause_srv = nh->advertiseService("/provider_imu/pause", &ProviderIMUNode::asyn_output_pause, this);
 
         // Threads
         reader_thread = std::thread(std::bind(&ProviderIMUNode::reader, this));
@@ -181,6 +181,34 @@ namespace provider_IMU
         return true;    
     }
 
+    bool ProviderIMUNode::asyn_output_pause(std_srvs::SetBool::Request &rsq, std_srvs::SetBool::Response &rsp)
+    {
+        std::stringstream ss;
+
+        writer_mutex.lock();
+        ss << "$VNASY," << std::to_string((uint8_t)rsq.data);
+        std::string send_data = ss.str();
+        appendChecksum(send_data);
+
+        serialConnection.transmit(send_data);
+        ros::Duration(0.1).sleep();
+        
+        writer_mutex.unlock();
+        return true;
+    }
+    
+    void ProviderIMUNode::dvl_velocity(const geometry_msgs::Twist::ConstPtr& msg)
+    {
+        std::stringstream ss;
+
+        std::unique_lock<std::mutex> mlock(writer_mutex);
+        ss << "$VNWRG,50," << std::to_string((float)msg->linear.x) << "," << std::to_string((float)msg->linear.y) << "," << std::to_string((float)msg->linear.z);
+        std::string send_data = ss.str();
+        appendChecksum(send_data);
+
+        serialConnection.transmit(send_data);
+    }
+
     void ProviderIMUNode::asyn_data_frequency_callback(const std_msgs::UInt8::ConstPtr& msg)
     {
         std::stringstream ss;
@@ -229,35 +257,6 @@ namespace provider_IMU
 
         writer_mutex.unlock();
     }
-
-    // /**
-    //  * @brief Switch the transmission mode to indoor or outdoor
-    //  * 
-    //  * @param std_srvs contains the std_srvs SetBool service
-    //  */
-    // bool ProviderIMUNode::indoormode(std_srvs::SetBool::Request &indoormodeRsq, std_srvs::SetBool::Response &indoormodeRsp)
-    // {
-            
-    //     if (indoormodeRsq.data) {
-            
-    //         serialConnection.transmit("$VNWRG,35,1,2,1,1*73/n");
-    //         ros::Duration(0.1).sleep();
-
-    //         indoormodeRsp.message = "IMU in indoor mode";
-    //         ROS_INFO_STREAM("IMU in indoor mode");
-
-    //     } else {
-
-    //         serialConnection.transmit("$VNWRG,35,1,0,1,1*71/n");
-    //         ros::Duration(0.1).sleep();
-
-    //         indoormodeRsp.message = "IMU in absolute mode";
-    //         ROS_INFO_STREAM("IMU in absolute mode");
-            
-    //     }
-    //     indoormodeRsp.success = true;
-    //     return true;
-    // }
 
     /**
      * @brief read the IMU serial port
@@ -551,17 +550,5 @@ namespace provider_IMU
                 ROS_DEBUG("imu: bad packet");
             }
         }
-    }
-
-    void ProviderIMUNode::dvl_velocity(const geometry_msgs::Twist::ConstPtr& msg)
-    {
-        std::stringstream ss;
-
-        std::unique_lock<std::mutex> mlock(writer_mutex);
-        ss << "$VNWRG,50," << std::to_string((float)msg->linear.x) << "," << std::to_string((float)msg->linear.y) << "," << std::to_string((float)msg->linear.z);
-        std::string send_data = ss.str();
-        appendChecksum(send_data);
-
-        serialConnection.transmit(send_data);
     }
 }
