@@ -73,7 +73,7 @@ namespace provider_IMU
         bool confirmChecksum(std::string& data);
         
         void send_information();
-        // bool indoormode(std_srvs::SetBool::Request &indoormodeRsq, std_srvs::SetBool::Response &indoormodeRsp);
+
         bool tare(std_srvs::Empty::Request &tareRsq, std_srvs::Empty::Response &tareRsp);
         bool reset(std_srvs::Empty::Request &tareRsq, std_srvs::Empty::Response &tareRsp);
         bool factory_reset(std_srvs::Empty::Request &tareRsq, std_srvs::Empty::Response &tareRsp);
