@@ -35,8 +35,10 @@ namespace provider_IMU
 
         const char* ERR_STR = "ERR";
 
-	    Configuration configuration;
-
+        ros::NodeHandlePtr nh;
+        Configuration configuration;
+        Serial serialConnection;
+	    
         std::thread reader_thread;
         std::thread register_15_thread;
         std::thread register_239_thread;
@@ -89,9 +91,6 @@ namespace provider_IMU
         void send_register_240();
         void send_error();
         void reader();
-
-        ros::NodeHandlePtr nh;
-        Serial serialConnection;
 
         ros::ServiceServer tare_srv;
         ros::ServiceServer reset_srv;

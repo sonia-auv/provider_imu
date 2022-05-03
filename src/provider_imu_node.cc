@@ -146,6 +146,7 @@ namespace provider_IMU
         ros::Duration(0.1).sleep();
 
         writer_mutex.unlock();
+        return true;
     }
 
     bool ProviderIMUNode::acceleration_disturbance(std_srvs::SetBool::Request &rsq, std_srvs::SetBool::Response &rsp)
@@ -161,6 +162,7 @@ namespace provider_IMU
         ros::Duration(0.1).sleep();
         
         writer_mutex.unlock();
+        return true;
     }
 
      bool ProviderIMUNode::velocity_compensation(std_srvs::SetBool::Request &rsq, std_srvs::SetBool::Response &rsp)
@@ -175,7 +177,8 @@ namespace provider_IMU
         serialConnection.transmit(send_data);
         ros::Duration(0.1).sleep();
         
-        writer_mutex.unlock();        
+        writer_mutex.unlock();
+        return true;    
     }
 
     void ProviderIMUNode::asyn_data_frequency_callback(const std_msgs::UInt8::ConstPtr& msg)
