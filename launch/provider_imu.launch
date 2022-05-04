@@ -5,5 +5,5 @@
 	    output="screen" />
 
     <rosparam command="load"
-        file="$(find provider_imu)/config/microstrain_conf.yaml"/>
+        file="$(find provider_imu)/config/$(env AUV).yaml"/>
 </launch>
