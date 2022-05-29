@@ -12,11 +12,31 @@ namespace provider_IMU
     ProviderIMUNode::ProviderIMUNode(const ros::NodeHandlePtr &_nh)
     : nh(_nh), configuration(_nh), serialConnection(configuration.getTtyPort())
     {
+        // Publisher
         publisher = nh->advertise<sensor_msgs::Imu>("/provider_imu/imu_info", 100);
-        dvl_subscriber = nh->subscribe<geometry_msgs::Twist>("/proc_nav/dvl_velocity", 100, &ProviderIMUNode::dvl_velocity, this);
-        tare_srv = nh->advertiseService("/provider_imu/tare", &ProviderIMUNode::tare, this);
-        indoor_srv = nh->advertiseService("/provider_imu/indoor", &ProviderIMUNode::indoormode, this);
 
+        // Subscribers
+        dvl_subscriber = nh->subscribe<geometry_msgs::Twist>("/proc_nav/dvl_velocity", 100, 
+            &ProviderIMUNode::dvl_velocity, this);
+        vpe_basic_control = nh->subscribe<std_msgs::UInt8MultiArray>("/provider_imu/vpe_basic_control", 10, 
+            &ProviderIMUNode::vpe_basic_control_callback, this);
+        magnetometer_calibration_control = nh->subscribe<std_msgs::UInt8MultiArray>("/provider_imu/magnetometer_calibration_control", 10, 
+            &ProviderIMUNode::magnetometer_calibration_control_callback, this);
+        delta_theta_delta_velocity = nh->subscribe<std_msgs::UInt8MultiArray>("/provider_imu/delta_theta_delta_velocity", 10,
+            &ProviderIMUNode::delta_theta_delta_velocity_callback, this);
+        imu_filtering_configuration = nh->subscribe<std_msgs::UInt8MultiArray>("/provider_imu/imu_filtering_configuration", 10,
+            &ProviderIMUNode::imu_filtering_configuration_callback, this);
+
+        // Service
+        tare_srv = nh->advertiseService("/provider_imu/tare", &ProviderIMUNode::tare, this);
+        reset_srv = nh->advertiseService("/provider_imu/reset", &ProviderIMUNode::reset, this);
+        factory_reset_srv = nh->advertiseService("/provider_imu/factory_reset", &ProviderIMUNode::factory_reset, this);
+        magnetic_disturbance_srv = nh->advertiseService("/provider_imu/magnetic_disturbance", &ProviderIMUNode::magnetic_disturbance, this);
+        acceleration_disturbance_srv = nh->advertiseService("/provider_imu/acceleration_disturbance", &ProviderIMUNode::acceleration_disturbance, this);
+        velocity_compensation_srv = nh->advertiseService("/provider_imu/velocity_compensation", &ProviderIMUNode::velocity_compensation, this);
+        asyn_output_pause_srv = nh->advertiseService("/provider_imu/pause", &ProviderIMUNode::asyn_output_pause, this);
+
+        // Threads
         reader_thread = std::thread(std::bind(&ProviderIMUNode::reader, this));
         error_thread = std::thread(std::bind(&ProviderIMUNode::send_error, this));
         register_15_thread = std::thread(std::bind(&ProviderIMUNode::send_register_15, this));
@@ -110,33 +130,182 @@ namespace provider_IMU
         return true;
     }
 
-    /**
-     * @brief Switch the transmission mode to indoor or outdoor
-     * 
-     * @param std_srvs contains the std_srvs SetBool service
-     */
-    bool ProviderIMUNode::indoormode(std_srvs::SetBool::Request &indoormodeRsq, std_srvs::SetBool::Response &indoormodeRsp)
+    bool ProviderIMUNode::reset(std_srvs::Empty::Request &tareRsq, std_srvs::Empty::Response &tareRsp)
     {
-            
-        if (indoormodeRsq.data) {
-            
-            serialConnection.transmit("$VNWRG,35,1,2,1,1*73/n");
-            ros::Duration(0.1).sleep();
+        serialConnection.transmit("$VNRST*4D\n");
+        ros::Duration(0.1).sleep();
 
-            indoormodeRsp.message = "IMU in indoor mode";
-            ROS_INFO_STREAM("IMU in indoor mode");
-
-        } else {
-
-            serialConnection.transmit("$VNWRG,35,1,0,1,1*71/n");
-            ros::Duration(0.1).sleep();
-
-            indoormodeRsp.message = "IMU in absolute mode";
-            ROS_INFO_STREAM("IMU in absolute mode");
-            
-        }
-        indoormodeRsp.success = true;
+        ROS_INFO("IMU reset finished");
         return true;
+    }
+
+    bool ProviderIMUNode::factory_reset(std_srvs::Empty::Request &tareRsq, std_srvs::Empty::Response &tareRsp)
+    {
+        serialConnection.transmit("$VNRFS*5F\n");
+        ros::Duration(0.1).sleep();
+
+        ROS_INFO("IMU factory reset finished");
+        return true;
+    }
+
+    bool ProviderIMUNode::magnetic_disturbance(std_srvs::SetBool::Request &rsq, std_srvs::SetBool::Response &rsp)
+    {
+        std::stringstream ss;
+
+        writer_mutex.lock();
+        ss << "$VNKMD," << std::to_string((uint8_t)rsq.data);
+        std::string send_data = ss.str();
+        appendChecksum(send_data);
+
+        serialConnection.transmit(send_data);
+        ros::Duration(0.1).sleep();
+
+        writer_mutex.unlock();
+        return true;
+    }
+
+    bool ProviderIMUNode::acceleration_disturbance(std_srvs::SetBool::Request &rsq, std_srvs::SetBool::Response &rsp)
+    {
+        std::stringstream ss;
+
+        writer_mutex.lock();
+        ss << "$VNKAD," << std::to_string((uint8_t)rsq.data);
+        std::string send_data = ss.str();
+        appendChecksum(send_data);
+
+        serialConnection.transmit(send_data);
+        ros::Duration(0.1).sleep();
+        
+        writer_mutex.unlock();
+        return true;
+    }
+
+     bool ProviderIMUNode::velocity_compensation(std_srvs::SetBool::Request &rsq, std_srvs::SetBool::Response &rsp)
+    {
+        std::stringstream ss;
+
+        writer_mutex.lock();
+        ss << "$VNWNV,51," << std::to_string((uint8_t)rsq.data) << ",0.1,0.01";
+        std::string send_data = ss.str();
+        appendChecksum(send_data);
+
+        serialConnection.transmit(send_data);
+        ros::Duration(0.1).sleep();
+        
+        writer_mutex.unlock();
+        return true;    
+    }
+
+    bool ProviderIMUNode::asyn_output_pause(std_srvs::SetBool::Request &rsq, std_srvs::SetBool::Response &rsp)
+    {
+        std::stringstream ss;
+
+        writer_mutex.lock();
+        ss << "$VNASY," << std::to_string((uint8_t)rsq.data);
+        std::string send_data = ss.str();
+        appendChecksum(send_data);
+
+        serialConnection.transmit(send_data);
+        ros::Duration(0.1).sleep();
+        
+        writer_mutex.unlock();
+        return true;
+    }
+    
+    void ProviderIMUNode::dvl_velocity(const geometry_msgs::Twist::ConstPtr& msg)
+    {
+        std::stringstream ss;
+
+        std::unique_lock<std::mutex> mlock(writer_mutex);
+        ss << "$VNWRG,50," << std::to_string((float)msg->linear.x) << "," << std::to_string((float)msg->linear.y) << "," << std::to_string((float)msg->linear.z);
+        std::string send_data = ss.str();
+        appendChecksum(send_data);
+
+        serialConnection.transmit(send_data);
+    }
+
+    void ProviderIMUNode::asyn_data_frequency_callback(const std_msgs::UInt8::ConstPtr& msg)
+    {
+        std::stringstream ss;
+
+        writer_mutex.lock();
+
+        ss << "$VNWNV,07," << std::to_string(msg->data);
+        std::string send_data = ss.str();
+        appendChecksum(send_data);
+
+        serialConnection.transmit(send_data);
+        ros::Duration(0.5).sleep();
+
+        writer_mutex.unlock();        
+    }
+
+    void ProviderIMUNode::vpe_basic_control_callback(const std_msgs::UInt8MultiArray::ConstPtr& msg)
+    {
+        std::stringstream ss;
+
+        writer_mutex.lock();
+
+        ss << "$VNWNV,35," << std::to_string(msg->data.at(0)) << "," << std::to_string(msg->data.at(1)) << "," << std::to_string(msg->data.at(2)) 
+            << "," << std::to_string(msg->data.at(3));
+        std::string send_data = ss.str();
+        appendChecksum(send_data);
+
+        serialConnection.transmit(send_data);
+        ros::Duration(0.5).sleep();
+
+        writer_mutex.unlock();
+    }
+
+    void ProviderIMUNode::magnetometer_calibration_control_callback(const std_msgs::UInt8MultiArray::ConstPtr& msg)
+    {
+        std::stringstream ss;
+
+        writer_mutex.lock();
+
+        ss << "$VNWNV,44," << std::to_string(msg->data.at(0)) << "," << std::to_string(msg->data.at(1)) << "," << std::to_string(msg->data.at(2));
+        std::string send_data = ss.str();
+        appendChecksum(send_data);
+
+        serialConnection.transmit(send_data);
+        ros::Duration(0.5).sleep();
+
+        writer_mutex.unlock();
+    }
+
+    void ProviderIMUNode::delta_theta_delta_velocity_callback(const std_msgs::UInt8MultiArray::ConstPtr& msg)
+    {
+        std::stringstream ss;
+
+        writer_mutex.lock();
+
+        ss << "$VNWNV,82," << std::to_string(msg->data.at(0)) << "," << std::to_string(msg->data.at(1)) << "," << std::to_string(msg->data.at(2)) 
+            << "," << std::to_string(msg->data.at(3));
+        std::string send_data = ss.str();
+        appendChecksum(send_data);
+
+        serialConnection.transmit(send_data);
+        ros::Duration(0.5).sleep();
+
+        writer_mutex.unlock();        
+    }
+
+    void ProviderIMUNode::imu_filtering_configuration_callback(const std_msgs::UInt8MultiArray::ConstPtr& msg)
+    {
+        std::stringstream ss;
+
+        writer_mutex.lock();
+
+        ss << "$VNWNV,85," << std::to_string(msg->data.at(0)) << "," << std::to_string(msg->data.at(1)) << "," << std::to_string(msg->data.at(2)) 
+            << "," << std::to_string(msg->data.at(4)) << "," << std::to_string(msg->data.at(5)) << "," << std::to_string(msg->data.at(6))
+            << "," << std::to_string(msg->data.at(7)) << "," << std::to_string(msg->data.at(8)) << "," << std::to_string(msg->data.at(9));
+        std::string send_data = ss.str();
+        appendChecksum(send_data);
+
+        serialConnection.transmit(send_data);
+        ros::Duration(0.5).sleep();
+
+        writer_mutex.unlock();        
     }
 
     /**
@@ -194,6 +363,10 @@ namespace provider_IMU
                 std::unique_lock<std::mutex> mlock(error_mutex);
                 error_str = std::string(buffer);
                 error_cond.notify_one();
+            }
+            else
+            {
+                ROS_INFO_STREAM(buffer);
             }
         }        
     }
@@ -427,17 +600,5 @@ namespace provider_IMU
                 ROS_DEBUG("imu: bad packet");
             }
         }
-    }
-
-    void ProviderIMUNode::dvl_velocity(const geometry_msgs::Twist::ConstPtr& msg)
-    {
-        std::stringstream ss;
-
-        std::unique_lock<std::mutex> mlock(writer_mutex);
-        ss << "$VNWRG,50," << std::to_string((float)msg->linear.x) << "," << std::to_string((float)msg->linear.y) << "," << std::to_string((float)msg->linear.z);
-        std::string send_data = ss.str();
-        appendChecksum(send_data);
-
-        serialConnection.transmit(send_data);
     }
 }
