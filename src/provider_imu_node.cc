@@ -57,7 +57,7 @@ namespace provider_IMU
     // node spin
     void ProviderIMUNode::Spin()
     {
-        ros::Rate r(20);
+        ros::Rate r(70);
         while(ros::ok())
         {
             ros::spinOnce();
